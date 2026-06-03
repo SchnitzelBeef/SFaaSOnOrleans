@@ -18,10 +18,12 @@ SFaaSOnOrleans is a Stateful Function as a Service (SFaaS) platform on top of Mi
 
 - [.NET Framework 7](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
 - IDE: [Visual Studio](https://visualstudio.microsoft.com/vs/community/) or [VSCode](https://code.visualstudio.com/)
+- [Kafka](https://kafka.apache.org/quickstart)
+- [Redis](https://redis.io/docs/latest/operate/oss_and_stack/install/install-stack/docker/)
 
 ### <a name="orleans"></a>New Orleans Users
 
-[Orleans](https://learn.microsoft.com/en-us/dotnet/orleans/) framework provides facilities to program distributed applications at scale using the virtual actor model. We highly recommend starting from the [Orleans Documentation](https://learn.microsoft.com/en-us/dotnet/orleans/overview) to further understand the model.
+[Orleans](https://learn.microsoft.com/en-us/dotnet/orleans/) framework provides facilities to program scalable and distributed applications using the virtual actor model. We highly recommend starting from the [Orleans Documentation](https://learn.microsoft.com/en-us/dotnet/orleans/overview) to further understand the model.
 
 ### <a name="run"></a>How to Run
 
@@ -46,11 +48,11 @@ dotnet run --project DynamicCodeApi
 
 In this programming task, you build upon the application scenario and your Kafka processing logic from your previous assignment. You are asked to design and implement a SFaaS platform on top of Orleans. You are provided with basic APIs to register and call functions and the remaining functionalities must be implemented.
 
-Refer to the assignment description in Absalon for a complete
+Refer to the assignment in Absalon for a complete description.
 
 ### <a name="basic-apis"></a>Basic APIs
 
-Your client program offers an HTTP server so you can perform basic operations in your SFaaS platform. Swagger UI can also support you interacting with the APIs through http://localhost:5244/swagger.
+The client program offers an HTTP server so you can perform basic operations in your SFaaS platform. Swagger UI can also support interacting with the APIs through http://localhost:5244/swagger.
 
 To register a simple function, submit a POST request (http://localhost:5244/register) with the following payload:
 ```
@@ -88,7 +90,7 @@ Then invoke it:
 }
 ```
 
-In case you need to operate with value objects other than strings, make sure to indicate the type when calling the state API:
+In case you need to operate with values other than strings, make sure to indicate the type when calling the state API:
 
 ```
 {
@@ -115,7 +117,7 @@ In case you need to operate with value objects other than strings, make sure to 
 
 **Q: How to debug?**
 
-**A:** Use an IDEA. For instance, to open the project in Visual Studio, make sure to select the BDSOnlineShop.sln as the solution file, so Visual Studio will recognize the solution as a whole and allow you to debug your application.
+**A:** Use an IDE. For instance, to open the project in Visual Studio, make sure to select the SFaaSOnOrleans.sln as the solution file, so Visual Studio will recognize the solution as a whole and allow you to debug your application.
 
 **Q: The project is throwing exceptions.**
 

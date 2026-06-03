@@ -94,7 +94,14 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     private static Task ProcessMessageAsync(string key, string value)
     {
-        // TODO Handle the Kafka message. In particular, trigger an executor grain, receive the function output, assemble it into an event, and publish it to the correct Kafka topic/partition. Make sure to acknowledge the processing of Kafka message correctly in order to ensure exactly-once processing.
+        /* TODO Handle the Kafka message.
+         * In particular, (a) trigger an executor grain, (b) receive the function output, 
+         * (c) assemble it into an event, and (d) publish it to the correct Kafka topic/partition. 
+         * Make sure to acknowledge the processing of Kafka message correctly in order 
+         * to ensure exactly-once processing.
+         * The following link might be of interest:
+         * https://learn.microsoft.com/en-us/dotnet/orleans/grains/external-tasks-and-grains#example-make-a-grain-call-from-code-running-on-a-thread-pool-thread
+         */
         Console.WriteLine($"Received message: Key = {key}, Value = {value}");
         throw new NotImplementedException();
     }

@@ -88,7 +88,7 @@ public class CodeController : ControllerBase
     // Dispatch the function workflow request for execution
     private Task<object> Dispatch(string functionName, object[] parameters)
     {
-        // TODO pick a well-defind MediatorGrain and call InitWorkflow
+        // TODO pick a well-defind MediatorGrain and call StartWorkflow
         throw new NotImplementedException();
     }
 
