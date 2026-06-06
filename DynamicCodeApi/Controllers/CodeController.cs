@@ -2,8 +2,28 @@
 using Infra.Interfaces;
 using Infra.Service;
 using Microsoft.AspNetCore.Mvc;
+using Infra.Kafka;
 
-namespace Controller;
+namespace Controller
+{
+public class CodeRegistrationRequest
+{
+    public string FunctionName { get; set; }
+    public string Code { get; set; }
+}
+
+public class FunctionExecutionRequest
+{
+    public string FunctionName { get; set; }
+    public object[] Parameters { get; set; }
+}
+
+public class FunctionCompositionRequest
+{
+    public string FunctionName { get; set; }
+    public string CompositionFirstFunctionName { get; set; }
+    public string CompositionSecondFunctionName { get; set; }
+}
 
 [ApiController]
 public class CodeController : ControllerBase
@@ -17,17 +37,6 @@ public class CodeController : ControllerBase
         this.client = OrleansClientManager.GetClient().Result;
     }
 
-    public class CodeRegistrationRequest
-    {
-        public string FunctionName { get; set; }
-        public string Code { get; set; }
-    }
-
-    public class FunctionExecutionRequest
-    {
-        public string FunctionName { get; set; }
-        public object[] Parameters { get; set; }
-    }
 
     // Register function
     [HttpPost("register")]
@@ -41,11 +50,44 @@ public class CodeController : ControllerBase
         return BadRequest($"Error registering function: {request.FunctionName}");
     }
 
-    // TODO Register function composition
+    // compose function (added)
     [HttpPost("compose")]
-    public IActionResult RegisterComposition()
+    public IActionResult RegisterComposition([FromBody] FunctionCompositionRequest request)
     {
-        throw new NotImplementedException();
+        if (string.IsNullOrWhiteSpace(request.FunctionName) ||
+            string.IsNullOrWhiteSpace(request.CompositionFirstFunctionName) ||
+            string.IsNullOrWhiteSpace(request.CompositionSecondFunctionName))
+            return BadRequest("All function names must be provided.");
+
+        if (this.kvs.GetString(request.CompositionFirstFunctionName) == null){
+            return NotFound($"Function '{request.CompositionFirstFunctionName}' not found.");
+        }
+
+        if (this.kvs.GetString(request.CompositionSecondFunctionName) == null){
+            return NotFound($"Function '{request.CompositionSecondFunctionName}' not found.");
+        }
+
+        // remove the last ';' to allow code composition
+        string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName); //.TrimEnd(';'); 
+        string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName); //.TrimEnd(';');
+
+        Console.WriteLine($"First function code: {firstCode}");
+        Console.WriteLine($"Second function code: {secondCode}");
+
+        string composedCode = $@"
+            System.Func<object[], object> first = args => {{
+                {firstCode}
+            }};
+            System.Func<object[], object> second = args => {{
+                {secondCode}
+            }};
+            return second(new object[] {{ first(args) }});";
+
+        Console.WriteLine($"Composed function code: {composedCode}");
+
+        if(this.kvs.PutString(request.FunctionName, composedCode))
+            return Ok($"Function '{request.FunctionName}' registered successfully.");
+        return BadRequest($"Error registering function: {request.FunctionName}");
     }
 
     // Execute function
@@ -85,11 +127,14 @@ public class CodeController : ControllerBase
         }
     }
 
-    // Dispatch the function workflow request for execution
+    // Dispatch the function workflow request for execution (added)
     private Task<object> Dispatch(string functionName, object[] parameters)
     {
-        // TODO pick a well-defind MediatorGrain and call StartWorkflow
-        throw new NotImplementedException();
+        // Pick a well-defind MediatorGrain and call StartWorkflow
+        
+        var mediatorGrain = this.client.GetGrain<IMediatorGrain>("mediator"); //obs
+        mediatorGrain.StartWorkflow(functionName, parameters);
+        return Task.FromResult((object)null);   
     }
 
     // Clear Redis
@@ -101,3 +146,6 @@ public class CodeController : ControllerBase
     }
 
 }
+    
+}
+

@@ -1,5 +1,9 @@
 ﻿using System.Diagnostics;
 using Workload;
+using Controller;
+using Infra.Interfaces;
+using Infra.Service;
+using DynamicCodeApi;
 
 namespace DynamicCodeApi.Workload;
 
@@ -61,6 +65,44 @@ internal class TransactionClient
 
         Console.WriteLine("The experiment is done. ");
     }
+
+    public async Task RunTest()
+    {
+        // Added for initial tests
+
+        var redisKVS = new RedisKVS(null); // Pass null for logger in this example
+        var controller = new CodeController(redisKVS);
+
+        var foo = new CodeRegistrationRequest
+        {
+            FunctionName = "AddNumbers",
+            Code = "return (System.Int64)args[0] + (System.Int64)args[1];"
+        };
+
+        Console.WriteLine(controller.RegisterFunction(foo)); 
+
+        Thread.Sleep(5000); // wait for the HTTP server to start
+
+        Console.WriteLine($"Adding");
+
+
+        var invoke = new FunctionExecutionRequest
+        {
+            FunctionName = "AddNumbers",
+            Parameters = new object[] { 10L, 20L }
+        };
+
+
+        var res = controller.TestFunction(invoke);
+
+        await res;
+
+        Console.WriteLine($"Execution result: {res.Result}");
+
+        // var test = new TestGenerator();
+        // await test.InitAllActors();
+    }
+
 
     // ================================================================================================================
     async void CustomerWorkAsync(object obj)

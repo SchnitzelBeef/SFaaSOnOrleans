@@ -18,7 +18,7 @@ public static class OrleansClientManager
                     options.ServiceId = Constants.ServiceId;
                 });
             })
-            // .ConfigureLogging(loggingBuilder => loggingBuilder.AddConsole())
+            //.ConfigureLogging(loggingBuilder => loggingBuilder.AddConsole())
             .ConfigureServices(f => f.AddSerializer(ser =>
             {
                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Infra"));

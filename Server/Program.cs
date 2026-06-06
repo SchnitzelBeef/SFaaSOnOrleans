@@ -5,6 +5,7 @@ using Orleans.Serialization;
 using Infra;
 using Microsoft.Extensions.DependencyInjection;
 using Infra.Interfaces;
+using Infra.Kafka;
 
 using var host = new HostBuilder()
     .UseOrleans(builder =>
@@ -31,9 +32,16 @@ using var host = new HostBuilder()
     })
     .Build();
 
+
 await host.StartAsync();
 Console.WriteLine("\n *************************************************************************");
 Console.WriteLine("    The Orleans silo started. Press Enter to terminate...    ");
 Console.WriteLine("\n *************************************************************************");
 Console.ReadLine();
 await host.StopAsync();
+
+// var result = controller.RegisterFunction(foo);
+// if (result is OkObjectResult ok)
+//     Console.WriteLine($"Success: {ok.Value}");
+// else if (result is BadRequestObjectResult bad)
+//     Console.WriteLine($"Error: {bad.Value}");

@@ -24,8 +24,8 @@ internal class WorkloadGenerator
         this.numCustomerActor = numCustomerActor;
         this.numProductActor = numProductActor;
         // it will generate samples within range [a, b]
-        customerDistribution = new DiscreteUniform(0, numCustomerActor - 1, new Random());
-        productDistribution = new DiscreteUniform(0, numProductActor - 1, new Random());
+        customerDistribution = new DiscreteUniform(0, this.numCustomerActor - 1, new Random());
+        productDistribution = new DiscreteUniform(0, this.numProductActor - 1, new Random());
         productQtyDistribution = new DiscreteUniform(1, 100, new Random());
         productPriceDistribution = new DiscreteUniform(1, 1000, new Random());
         customerBalanceDistribution = new DiscreteUniform(1, 10000, new Random());
@@ -38,7 +38,7 @@ internal class WorkloadGenerator
 
     async void InitiateClient()
     {
-        client = await OrleansClientManager.GetClient();
+        this.client = await OrleansClientManager.GetClient();
         isClientConnected = true;
     }
 

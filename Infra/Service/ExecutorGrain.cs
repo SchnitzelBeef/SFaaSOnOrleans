@@ -19,6 +19,17 @@ public class ExecutorGrain : Grain, IExecutorGrain
     // Use logger if necessary
     private readonly ILogger<ExecutorGrain> logger;
 
+    public Task Init()
+    {
+        return Task.CompletedTask;
+    }
+
+    public override async Task OnActivateAsync(CancellationToken cancellationToken)
+    {
+        Console.WriteLine("Activated");
+        return;
+    }
+
     public ExecutorGrain(IKeyValueStore kvs, ILogger<ExecutorGrain> logger)
 	{
         this.kvs = kvs;
