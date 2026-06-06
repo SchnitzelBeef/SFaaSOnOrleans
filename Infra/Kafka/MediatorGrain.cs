@@ -31,7 +31,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         return Task.CompletedTask;
     }
 
-    public Task Init(string Topic, string GroupId, int Partition, int offset = -1)
+    public Task Init(string Topic, string GroupId, int Partition, int offset)
     {
         this._topic = Topic;
         this._partition = Partition;

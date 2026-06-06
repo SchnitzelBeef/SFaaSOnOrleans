@@ -74,7 +74,7 @@ Console.WriteLine($"Function composed: {controller.RegisterComposition(composedF
 // Execute function through the mediator grain to test end-to-end functionality
 
 var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator"); //obs
-await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, 0);
+await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
 
 await controller.ExecuteFunction(new FunctionExecutionRequest
 {
