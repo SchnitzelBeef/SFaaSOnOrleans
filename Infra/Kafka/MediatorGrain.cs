@@ -114,7 +114,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 try
                 {
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
-                    Console.WriteLine($"Consumed message. Key = {consumeResult.Message.Key}, Value = {consumeResult.Message.Value}");
+                    Console.WriteLine($"Consumed message. Value = {consumeResult.Message.Value}");
                     await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value);
                     this._consumer.Commit();
                 }
@@ -136,6 +136,16 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     private async Task ProcessMessageAsync(string key, Event @event)
     {
+        /* TODO Handle the Kafka message.
+         * In particular, (a) trigger an executor grain, (b) receive the function output, 
+         * (c) assemble it into an event, and (d) publish it to the correct Kafka topic/partition. 
+         * Make sure to acknowledge the processing of Kafka message correctly in order 
+         * to ensure exactly-once processing.
+         * The following link might be of interest:
+         * https://learn.microsoft.com/en-us/dotnet/orleans/grains/external-tasks-and-grains#example-make-a-grain-call-from-code-running-on-a-thread-pool-thread
+         */
+
+        // ^^ I believe we are doing most of this in the code below, but we are not publishing to correct topic/partition
 
 
         var functionName = @event.functionName;
@@ -145,38 +155,18 @@ public class MediatorGrain : Grain, IMediatorGrain
 
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
-        // var result = await Task.Factory.StartNew(
-        //     () => executor.Execute(functionName, parameters),
-        //     CancellationToken.None,
-        //     TaskCreationOptions.None,
-        //     scheduler 
-        // ).Unwrap();
 
-        // Assemble into event
-
-        // Event @outputEvent = new Event(functionName, new object[] { result });
-        
-        var returnValue = await executor.Execute(functionName, parameters);
-        if (returnValue is Event @newEvent)
+        // Check if result is part of a workflow, in which case an Event type is returned
+        if (result is Event @newEvent)
         {
             Console.WriteLine($"Execution result: {newEvent.functionName}, {newEvent.parameters}");
             await this.StartEventWorkflow(@newEvent);
         }
         else
         {
-            Console.WriteLine($"Terminal result: {returnValue}");
+            Console.WriteLine($"Terminal result: {result}");
         }
-        
-        // Do stuff here    
     
-        /* TODO Handle the Kafka message.
-         * In particular, (a) trigger an executor grain, (b) receive the function output, 
-         * (c) assemble it into an event, and (d) publish it to the correct Kafka topic/partition. 
-         * Make sure to acknowledge the processing of Kafka message correctly in order 
-         * to ensure exactly-once processing.
-         * The following link might be of interest:
-         * https://learn.microsoft.com/en-us/dotnet/orleans/grains/external-tasks-and-grains#example-make-a-grain-call-from-code-running-on-a-thread-pool-thread
-         */
         return;
     }
 

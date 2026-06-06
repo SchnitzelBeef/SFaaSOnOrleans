@@ -26,7 +26,6 @@ public class ExecutorGrain : Grain, IExecutorGrain
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
     {
-        Console.WriteLine("Activated");
         return;
     }
 

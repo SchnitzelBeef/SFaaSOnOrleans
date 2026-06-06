@@ -39,9 +39,10 @@ Console.WriteLine("Starting the transaction client HTTP app...");
 Thread thread = new Thread(work);
 thread.Start();
 
-Thread.Sleep(5000); // wait for the HTTP server to start
+// wait for the HTTP server to start, this is probably not the best way to do this
+Thread.Sleep(5000); 
 
-// Testsetup, should not be part of final handin
+// Test-setup, should not be part of final handin
 // Just used to test that we can submit functions to the Redis KVS and execute them through the mediator grain
 Console.WriteLine("Initializing test...");
 
@@ -73,7 +74,7 @@ Console.WriteLine($"Function composed: {controller.RegisterComposition(composedF
 
 // Execute function through the mediator grain to test end-to-end functionality
 
-var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator"); //obs
+var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator"); //obs, temporary setup
 await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
 
 await controller.ExecuteFunction(new FunctionExecutionRequest
