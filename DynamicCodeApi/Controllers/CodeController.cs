@@ -12,6 +12,18 @@ public class CodeRegistrationRequest
     public string Code { get; set; }
 }
 
+public class KeyValueRequest
+{
+    public string Key { get; set; }
+    public string Value { get; set; }
+}
+
+public class KeyValueGetRequest
+{
+    public string Key { get; set; }
+}
+
+
 public class FunctionExecutionRequest
 {
     public string FunctionName { get; set; }
@@ -37,9 +49,8 @@ public class CodeController : ControllerBase
         this.client = OrleansClientManager.GetClient().Result;
     }
 
-
     // Register function
-    [HttpPost("register")]
+    [HttpPost("registerFun")]
     public IActionResult RegisterFunction([FromBody] CodeRegistrationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.FunctionName) || string.IsNullOrWhiteSpace(request.Code))
@@ -48,6 +59,18 @@ public class CodeController : ControllerBase
         if(this.kvs.PutString(request.FunctionName, request.Code))
             return Ok($"Function '{request.FunctionName}' registered successfully.");
         return BadRequest($"Error registering function: {request.FunctionName}");
+    }
+
+    // Register key-value, could also simply use 'RegisterFunction' instead
+    [HttpPost("registerKV")]
+    public IActionResult RegisterKeyValue([FromBody] KeyValueRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Key) || string.IsNullOrWhiteSpace(request.Value))
+            return BadRequest("Key and value must be provided.");
+
+        if(this.kvs.PutString(request.Key, request.Value))
+            return Ok($"Key '{request.Key}' registered successfully.");
+        return BadRequest($"Error registering function: {request.Key}");
     }
 
     // compose function (added)
@@ -67,9 +90,8 @@ public class CodeController : ControllerBase
             return NotFound($"Function '{request.CompositionSecondFunctionName}' not found.");
         }
 
-        // remove the last ';' to allow code composition
-        string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName); //.TrimEnd(';'); 
-        string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName); //.TrimEnd(';');
+        string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName);
+        string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName);
 
         Console.WriteLine($"First function code: {firstCode}");
         Console.WriteLine($"Second function code: {secondCode}");
@@ -114,6 +136,17 @@ public class CodeController : ControllerBase
         {
             return BadRequest($"Error executing function: {ex}");
         }
+    }
+
+    // Test get value from KVS
+    [HttpPost("get")]
+    public async Task<IActionResult> GetValue([FromBody] KeyValueGetRequest request)
+    {
+        var res = this.kvs.GetString(request.Key);
+        if (res == null){
+            return NotFound($"Key '{request.Key}' not found.");
+        }
+        return Ok(res);
     }
 
     // Test function

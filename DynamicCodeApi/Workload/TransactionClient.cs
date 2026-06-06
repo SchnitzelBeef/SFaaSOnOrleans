@@ -20,16 +20,25 @@ internal class TransactionClient
     CountdownEvent allThreadsStart;
     CountdownEvent allThreadsAreDone;
 
+    RedisKVS redisKVS; 
+    CodeController controller;
+
+    internal TransactionClient()
+    {
+        this.redisKVS = new RedisKVS(null); 
+        this.controller = new CodeController(this.redisKVS);
+    }
+
     public async Task RunClient()
     {
 
         // ================================================================================================================
         // STEP 1: init all actors
         var workload = new WorkloadGenerator(numCustomerActor, numProductActor);
-        await workload.InitAllActors();
+        await workload.InitAllActors(this.controller);
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
-
+        return; // OBS
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();

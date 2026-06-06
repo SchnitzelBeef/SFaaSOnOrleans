@@ -46,7 +46,7 @@ Thread.Sleep(5000);
 // Just used to test that we can submit functions to the Redis KVS and execute them through the mediator grain
 Console.WriteLine("Initializing test...");
 
-var redisKVS = new RedisKVS(null); // Pass null for logger in this example
+var redisKVS = new RedisKVS(null); // Null for logger
 var controller = new CodeController(redisKVS);
 
 var foo = new CodeRegistrationRequest
@@ -83,4 +83,11 @@ await controller.ExecuteFunction(new FunctionExecutionRequest
     Parameters = new object[] { 10L, 20L }
 });
 
+
+Thread.Sleep(2000);
+
+
+// Run transaction client (using new RedisKVS)
+var transactionClient = new TransactionClient();
+await transactionClient.RunClient();
 return;

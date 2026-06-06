@@ -1,6 +1,8 @@
 ﻿using System.Text;
+using Controller;
 using DynamicCodeApi;
 using MathNet.Numerics.Distributions;
+using Infra.EcommerceStates;
 
 namespace Workload;
 
@@ -42,9 +44,38 @@ internal class WorkloadGenerator
         isClientConnected = true;
     }
 
-    public async Task InitAllActors()
+    public async Task InitAllActors(CodeController controller)
     {
-        throw new NotImplementedException();
+        // We must init all actors with an initial state in the Redis KVS:
+        for (int i = 0; i < numCustomerActor; i++)
+        {
+            KeyValueRequest customerState = new KeyValueRequest
+            {
+                Key = $"Customer-{{{i}}}",
+                Value = $"{new CustomerState(customerBalanceDistribution.Sample())};"
+            };
+            controller.RegisterKeyValue(customerState);
+        }
+
+        for (int i = 0; i < numProductActor; i++)
+        {
+            KeyValueRequest productState = new KeyValueRequest
+            {
+                Key = $"Product-{{{i}}}",
+                Value = $"{new ProductState(productPriceDistribution.Sample(), productQtyDistribution.Sample())};"
+            };
+            controller.RegisterKeyValue(productState);
+        }
+
+        KeyValueRequest analyticsState = new KeyValueRequest
+        {
+            Key = $"Analytics-{{0}}",
+            Value = $"{new AnalyticsState()};"
+        };
+        controller.RegisterKeyValue(analyticsState);
+
+        // Code commented out in handout code
+        // throw new NotImplementedException();
         /*
         var analyticsActor = client.GetGrain<IAnalyticsActor>(0);
         await analyticsActor.Init();
@@ -71,6 +102,7 @@ internal class WorkloadGenerator
         var tasks = new List<Task<int>>();
         for (int i = 0; i < numProductActor; i++)
         {
+            
             /*
             var productActor = client.GetGrain<IProductActor>(i);
             tasks.Add(productActor.GetInventory());
