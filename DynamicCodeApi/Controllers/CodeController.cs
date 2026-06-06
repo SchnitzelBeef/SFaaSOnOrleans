@@ -78,10 +78,18 @@ public class CodeController : ControllerBase
             System.Func<object[], object> first = args => {{
                 {firstCode}
             }};
-            System.Func<object[], object> second = args => {{
-                {secondCode}
-            }};
-            return second(new object[] {{ first(args) }});";
+            
+            var result = new object[] {{ first(args) }};
+            return (object)new Infra.Kafka.Event(""{request.CompositionSecondFunctionName}"", result);";
+
+        // string composedCode = $@"
+        //     System.Func<object[], object> first = args => {{
+        //         {firstCode}
+        //     }};
+        //     System.Func<object[], object> second = args => {{
+        //         {secondCode}
+        //     }};
+        //     return second(new object[] {{ first(args) }});";
 
         Console.WriteLine($"Composed function code: {composedCode}");
 

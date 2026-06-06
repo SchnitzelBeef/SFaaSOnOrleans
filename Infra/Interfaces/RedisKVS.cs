@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using StackExchange.Redis;
+using Infra.Kafka;
 
 namespace Infra.Interfaces;
 
@@ -48,5 +49,18 @@ public class RedisKVS : IKeyValueStore
 		this._db.Execute("flushdb");
 	}
 
+	public bool PutEvent(string key, Event @event)
+	{
+		// Should probably use the EventSerializer class here instead
+		var json = JsonConvert.SerializeObject(@event);
+		return PutString(key, json);
+	}
+
+	public Event GetEvent(string key)
+	{
+		var json = GetString(key);
+		if (json == null) return null;
+		return JsonConvert.DeserializeObject<Event>(json);
+	}
 }
 

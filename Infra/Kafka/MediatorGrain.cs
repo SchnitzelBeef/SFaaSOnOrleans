@@ -77,10 +77,8 @@ public class MediatorGrain : Grain, IMediatorGrain
         return Task.CompletedTask;
     }
 
-    public async Task<bool> StartWorkflow(string functionName, object[] parameters)
+    private async Task<bool> StartEventWorkflow(Event @event)
 	{
-        // Assemble function name and parameters into an event object
-        var @event = new Event(functionName, parameters);
         try
         {
             var res = await this.producer.ProduceAsync(this.topicPartition, new Message<Null, Event>
@@ -97,6 +95,15 @@ public class MediatorGrain : Grain, IMediatorGrain
         }
     }
 
+
+    // Turned StartWorkflow into public wrapper method 
+    public async Task<bool> StartWorkflow(string functionName, object[] parameters)
+	{
+        // Assemble function name and parameters into an event object
+        var @event = new Event(functionName, parameters);
+        return await StartEventWorkflow(@event);
+    }
+
     private async Task StartConsuming(CancellationToken cancellationToken)
     {
         Console.WriteLine($"Started consuming from topic '{this._topic}', partition {this._partition}, starting at offset {this._offset.Value}...");
@@ -107,6 +114,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 try
                 {
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
+                    Console.WriteLine($"Consumed message. Key = {consumeResult.Message.Key}, Value = {consumeResult.Message.Value}");
                     await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value);
                     this._consumer.Commit();
                 }
@@ -136,19 +144,29 @@ public class MediatorGrain : Grain, IMediatorGrain
         Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}");
 
         // Trigger executor grain and await function output
-        var result = await Task.Factory.StartNew(
-            () => executor.Execute(functionName, parameters),
-            CancellationToken.None,
-            TaskCreationOptions.None,
-            scheduler 
-        ).Unwrap();
+        var result = await executor.Execute(functionName, parameters);
+        // var result = await Task.Factory.StartNew(
+        //     () => executor.Execute(functionName, parameters),
+        //     CancellationToken.None,
+        //     TaskCreationOptions.None,
+        //     scheduler 
+        // ).Unwrap();
 
         // Assemble into event
 
         // Event @outputEvent = new Event(functionName, new object[] { result });
-
-        Console.WriteLine($"Execution result: {result}");
-
+        
+        var returnValue = await executor.Execute(functionName, parameters);
+        if (returnValue is Event @newEvent)
+        {
+            Console.WriteLine($"Execution result: {newEvent.functionName}, {newEvent.parameters}");
+            await this.StartEventWorkflow(@newEvent);
+        }
+        else
+        {
+            Console.WriteLine($"Terminal result: {returnValue}");
+        }
+        
         // Do stuff here    
     
         /* TODO Handle the Kafka message.
@@ -159,8 +177,7 @@ public class MediatorGrain : Grain, IMediatorGrain
          * The following link might be of interest:
          * https://learn.microsoft.com/en-us/dotnet/orleans/grains/external-tasks-and-grains#example-make-a-grain-call-from-code-running-on-a-thread-pool-thread
          */
-        Console.WriteLine($"Done");
-        throw new NotImplementedException();
+        return;
     }
 
     public override Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)

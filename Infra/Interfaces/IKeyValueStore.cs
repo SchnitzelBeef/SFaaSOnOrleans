@@ -1,4 +1,5 @@
-﻿namespace Infra.Interfaces;
+﻿using Infra.Kafka;
+namespace Infra.Interfaces;
 
 public interface IKeyValueStore
 {
@@ -7,7 +8,8 @@ public interface IKeyValueStore
 
     string GetString(string key) { throw new NotImplementedException(); }
     bool PutString(string key, string value) { throw new NotImplementedException(); }
-
+    bool PutEvent(string key, Event @event);
+    Event GetEvent(string key);
     void Reset();
 }
 
