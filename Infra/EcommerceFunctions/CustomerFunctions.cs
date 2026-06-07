@@ -1,24 +1,22 @@
 ﻿
 
+using Infra.EventSchema;
+
 namespace Infra.EcommerceFunctions
 {
     public static class CustomerFunctions
     {
-
-        public static string GetProcessCheckout()
+        public static string GetProcessCheckoutFunction()
         {
-            var wrapped_code = $@"
-                if (args.Length < 2) {{
-                    return ""Expected 2 arguments, got "" + args.Length;
-                }}
-                if (args[0] is not long id) {{
-                    return ""Expected args[0] to be type 'long', got "" + args[0]?.GetType().Name;
-                }}
-                if (args[1] is not Checkout checkout) {{
-                    return ""Expected args[1] to be type 'Checkout', got "" + args[1]?.GetType().Name;
-                }}
-
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
+            {
+                (typeof(long), "id"),
+                (typeof(Checkout), "checkout")
+            });
+            var code = $@"
+                {args_code}
                 var key = ""Customer-"" + id;
+                var productId = (long)checkout.productId;
                 var price = (double)checkout.price;
                 var quantity = (int)checkout.quantity;
 
@@ -28,21 +26,22 @@ namespace Infra.EcommerceFunctions
                 {{
                     // Get outcome log and send insufficient balance message to analytics actor            
                     // var outcome = new Outcome(this.id, productId, price * quantity, Status.INSUFFICIENT_BALANCE);
-                    //await outcomeProducer.Append(this.id, outcome);
+                    // await outcomeProducer.Append(this.id, outcome);
                     // _ = outcomeProducer.Append(this.id, outcome);
-
-                    return ""Insufficient balance on customer id: "" + id;
+                    // OBS
+                    // return ""Insufficient balance on customer id: "" + id;
                 }}
 
                 // Reserve balance
                 // Not the prettiest way to update the state
                 kvs.Put(key, new CustomerState{{Balance = balance - total}});
 
-                // Not done currently, since other actor functions are not implemented
-                return ""Balance withdrawn on customer id: "" + id;
+                // I cannot get it to return the Inventory type
+                // var inventoryEvent = new Inventory(id, price, quantity);
+                return new object[] {{ productId, id, price, quantity }};
             ";
 
-            return wrapped_code;
+            return code;
 
 
             // // Get product log and send inventory request to product actor
@@ -104,9 +103,22 @@ namespace Infra.EcommerceFunctions
         //     }
         // }
 
-        // public Task<double> GetBalance()
-        // {
-        //     return Task.FromResult(this.state.Balance);
-        // }
+        // This function is not really necessary, since we can fetch the balance directly in the RedisKVS
+        // It was added to assist in keeping original structure of the BDSOnlineStore
+        public static string GetGetBalanceFunction()
+        {
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
+            {
+                (typeof(long), "id")
+            });
+
+            var code = $@"
+                    {args_code}
+                    var key = ""Customer-"" + id;
+                    return kvs.Get<CustomerState>(key).Balance;
+            ";
+
+            return code;
+        }
     }
 }

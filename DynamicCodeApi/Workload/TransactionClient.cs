@@ -4,6 +4,7 @@ using Controller;
 using Infra.Interfaces;
 using Infra.Service;
 using DynamicCodeApi;
+using System.Drawing;
 
 namespace DynamicCodeApi.Workload;
 
@@ -31,19 +32,24 @@ internal class TransactionClient
 
     public async Task RunClient()
     {
+        var workload = new WorkloadGenerator(numCustomerActor, numProductActor, this.controller);
+
+        // ================================================================================================================
+        // STEP 0: publish all actor functions to the RedisKVS
+        Console.WriteLine("\n ***********************************************************************");
+        await workload.InitAllActorFunctions();
 
         // ================================================================================================================
         // STEP 1: init all actors
-        var workload = new WorkloadGenerator(numCustomerActor, numProductActor, this.controller);
         await workload.InitAllActors();
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
-        
-        return; // obs
 
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();
+        Console.WriteLine($"Before total amount: {before_totalAmount}");
+        return; // obs, returns prematurely
 
         // ================================================================================================================
         // STEP 3: spawn multiple threads to submit transactions

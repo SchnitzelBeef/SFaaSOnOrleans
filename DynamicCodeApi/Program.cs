@@ -42,8 +42,15 @@ thread.Start();
 // wait for the HTTP server to start, this is probably not the best way to do this
 Thread.Sleep(5000); 
 
+//obs, temporary setup
+// only uses single mediator grain - should be divided into proper Kafka partitions and Topics
+// and initiated inside transaction client/workload generator  
+var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator");
+await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
+
 // Test-setup, should not be part of final handin
 // Just used to test that we can submit functions to the Redis KVS and execute them through the mediator grain
+/*
 Console.WriteLine("Initializing test...");
 
 var redisKVS = new RedisKVS(null); // Null for logger
@@ -74,18 +81,15 @@ Console.WriteLine($"Function composed: {controller.RegisterComposition(composedF
 
 // Execute function through the mediator grain to test end-to-end functionality
 
-var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator"); //obs, temporary setup
-await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
 
-// await controller.ExecuteFunction(new FunctionExecutionRequest
-// {
-//     FunctionName = "AddThenIncrement",
-//     Parameters = new object[] { 10L, 20L }
-// });
-
+await controller.ExecuteFunction(new FunctionExecutionRequest
+{
+    FunctionName = "AddThenIncrement",
+    Parameters = new object[] { 10L, 20L }
+});
 
 Thread.Sleep(2000);
-
+*/
 
 // Run transaction client (using new RedisKVS)
 var transactionClient = new TransactionClient();

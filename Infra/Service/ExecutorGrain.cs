@@ -60,16 +60,17 @@ public class ExecutorGrain : Grain, IExecutorGrain
             public class DynamicClass
             {{
                 private readonly IKeyValueStore kvs;
+                
                 public DynamicClass(IKeyValueStore kvs){{
                     this.kvs = kvs;
                 }}
+                
                 public object Execute(params object[] args)
                 {{
                     {code}
                     return null; // Fallback for functions not returning result
                 }}
             }}";
-            
             // Compile the assembly
             var assembly = CompileAssembly(functionName, wrappedCode);
             var type = assembly.GetType("DynamicClass");

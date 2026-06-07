@@ -63,7 +63,7 @@ public class CodeController : ControllerBase
             return BadRequest("Function name and code must be provided.");
 
         if(this.kvs.PutString(request.FunctionName, request.Code))
-            Console.WriteLine($"Function '{request.FunctionName}' registered := {request.Code}");
+            Console.WriteLine($"Function '{request.FunctionName}' registered in RedisKVS := {request.Code}");
             return Ok($"Function '{request.FunctionName}' registered successfully.");
         return BadRequest($"Error registering function: {request.FunctionName}");
     }
@@ -94,7 +94,7 @@ public class CodeController : ControllerBase
     }
 
 
-    // compose function (added)
+    // Compose function
     [HttpPost("compose")]
     public IActionResult RegisterComposition([FromBody] FunctionCompositionRequest request)
     {
@@ -114,27 +114,18 @@ public class CodeController : ControllerBase
         string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName);
         string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName);
 
+        // Can most likely be optimized to call the function of the first function instead of stealing the code
         string composedCode = $@"
-            System.Func<object[], object> first = args => {{
+            System.Func<object[], object> first = args => {{ 
                 {firstCode}
             }};
-            
             var result = new object[] {{ first(args) }};
             return (object)new Infra.Kafka.Event(""{request.CompositionSecondFunctionName}"", result);";
 
-        // string composedCode = $@"
-        //     System.Func<object[], object> first = args => {{
-        //         {firstCode}
-        //     }};
-        //     System.Func<object[], object> second = args => {{
-        //         {secondCode}
-        //     }};
-        //     return second(new object[] {{ first(args) }});";
-
-
-        if(this.kvs.PutString(request.FunctionName, composedCode))
-            Console.WriteLine($"Composed function '{request.FunctionName}' registered := {composedCode}");
+        if(this.kvs.PutString(request.FunctionName, composedCode)) {
+            Console.WriteLine($"Composed function '{request.FunctionName}' registered in RedisKVS := {composedCode}");
             return Ok($"Function '{request.FunctionName}' registered successfully.");
+        }
         return BadRequest($"Error registering function: {request.FunctionName}");
     }
 
@@ -193,6 +184,8 @@ public class CodeController : ControllerBase
         
         var mediatorGrain = this.client.GetGrain<IMediatorGrain>("mediator"); //obs
         mediatorGrain.StartWorkflow(functionName, parameters);
+
+        // Could also be made to return an actual result
         return Task.FromResult((object)null);   
     }
 

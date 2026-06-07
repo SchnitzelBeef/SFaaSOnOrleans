@@ -5,13 +5,9 @@ namespace Infra.EventSchema
     [MessagePackObject]
     public sealed class Outcome
     {
-        [Key(0)]
         public readonly long customerId;
-        [Key(1)]
         public readonly long productId;
-        [Key(2)]
         public readonly double total;
-        [Key(3)]
         public readonly Status status;
 
         [SerializationConstructor]

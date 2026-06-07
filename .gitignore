@@ -55,6 +55,9 @@ local.properties
 .classpath
 .project
 
+.DynamicCodeApi\appsettings.Development.json
+.DynamicCodeApi\appsettings.json
+
 # External tool builders
 .externalToolBuilders/
 

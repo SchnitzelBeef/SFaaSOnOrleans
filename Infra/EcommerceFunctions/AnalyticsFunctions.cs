@@ -1,22 +1,11 @@
-﻿// using ECommerce.Olep.Checkpointing;
-// using ECommerce.Olep.Interfaces;
-// using ECommerce.Olep.Schema;
-// using ECommerce.Olep.Token;
-// using MessagePack;
-// using Orleans.Streams;
-// using System.Text.Json;
-// using Utilities;
-
-// namespace Infra.EcommerceFunctions
+﻿// namespace Infra.EcommerceFunctions
 // {
 
 //     public static class AnalyticsFunctions
 //     {
 
-//         public static Task GetUpdateAsync(Outcome outcome)
+//         public static string GetGetUpdateAsyncFunction()
 //         {
-
-            
 //             // If checkout is successful, update the total sales for the corresponding product
 //             if (outcome.status == Status.OK)
 //             {

@@ -5,6 +5,7 @@ using MathNet.Numerics.Distributions;
 using Infra.EcommerceStates;
 using Infra.EcommerceFunctions;
 using Infra.EventSchema;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Workload;
 
@@ -51,9 +52,79 @@ internal class WorkloadGenerator
         isClientConnected = true;
     }
 
+    public async Task InitAllActorFunctions()
+    {
+        // Init all actor functions in the Redis KVS:
+
+        // ------ Customer functions ------
+
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "ProcessCheckout",
+            Code = CustomerFunctions.GetProcessCheckoutFunction()
+        });
+
+        // Not really necessary, since we can get the balance directly in the RedisKVS
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "GetBalance",
+            Code = CustomerFunctions.GetGetBalanceFunction()
+        });
+
+
+        // ------ Products functions ------
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "ProcessInventoryRequest",
+            Code = ProductFunctions.GetProcessInventoryRequestFunction()
+        });
+        
+        // Not really necessary, since we can get the price directly in the RedisKVS
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "GetPrice",
+            Code = ProductFunctions.GetGetPriceFunction()
+        });
+
+        // Not really necessary, since we can get the inventory quantity directly in the RedisKVS
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "GetInventory",
+            Code = ProductFunctions.GetGetInventoryFunction()
+        });
+
+
+        // ------ Analytics functions ------
+
+
+
+        // ------ Workflows ------
+        this.controller.RegisterComposition(new FunctionCompositionRequest
+        {
+            FunctionName = "NewCheckoutOrder",
+            CompositionFirstFunctionName = "ProcessCheckout",
+            CompositionSecondFunctionName = "ProcessInventoryRequest"
+        });
+
+    }
+
+    // Unpacker function
+    private T FunctionExecutionUnpacker<T>(IActionResult result, T bad_result)
+    {
+        if (result is OkObjectResult ok)
+        {
+            return (T)ok.Value;
+        }
+        else if (result is BadRequestObjectResult bad)
+        {
+            Console.WriteLine($"Error: God bad reuslt '{bad}' when unpacking HTTP function execution result");
+        }
+        return bad_result; 
+    }  
+
     public async Task InitAllActors()
     {
-        // We must init all actors with an initial state in the Redis KVS:
+        // Init all actors with an initial state in the Redis KVS:
 
         // ------ Customer ------
 
@@ -67,85 +138,83 @@ internal class WorkloadGenerator
             this.controller.RegisterKeyObject(customerState);
         }
 
-        this.controller.RegisterFunction(new CodeRegistrationRequest
-        {
-            FunctionName = "ProcessCheckout",
-            Code = CustomerFunctions.GetProcessCheckout()
 
-        });
-
-        // Example of processing checkout
-        await this.controller.ExecuteFunction(new FunctionExecutionRequest
-        {
-            FunctionName = "ProcessCheckout",
-            Parameters = new object[] {0L, new Checkout(0, 10, 2)}
-        });
-
-        // // ------ Products ------
-
-        // for (int i = 0; i < numProductActor; i++)
-        // {
-        //     KeyValueRequest productState = new KeyValueRequest
-        //     {
-        //         Key = $"Product-{i}",
-        //         Value = $"{new ProductState(productPriceDistribution.Sample(), productQtyDistribution.Sample())};"
-        //     };
-        //     this.controller.RegisterKeyValue(productState);
-        // }
-
-        // // ------ Analytics ------
-
-        // KeyValueRequest analyticsState = new KeyValueRequest
-        // {
-        //     Key = $"Analytics-0",
-        //     Value = $"{new AnalyticsState()};"
-        // };
-        // this.controller.RegisterKeyValue(analyticsState);
-
-        // Code commented out in handout code
-        // throw new NotImplementedException();
-        /*
-        var analyticsActor = client.GetGrain<IAnalyticsActor>(0);
-        await analyticsActor.Init();
-
-        var tasks = new List<Task>();
-        for (int i = 0; i < numCustomerActor; i++)
-        {
-            var customerActor = client.GetGrain<ICustomerActor>(i);
-            tasks.Add(customerActor.Init(customerBalanceDistribution.Sample()));  
-        }
+        // ------ Products ------
 
         for (int i = 0; i < numProductActor; i++)
         {
-            var productActor = client.GetGrain<IProductActor>(i);
-            tasks.Add(productActor.Init(productPriceDistribution.Sample(), productQtyDistribution.Sample()));
+            ObejctRegistrationRequest productState = new ObejctRegistrationRequest
+            {
+                Key = $"Product-{i}",
+                Object = new ProductState{Price = productPriceDistribution.Sample(), Quantity = productQtyDistribution.Sample()}
+            };
+            this.controller.RegisterKeyObject(productState);
         }
-               
-        await Task.WhenAll(tasks);
-        */
+
+
+
+        // ------ Analytics ------
+
+        ObejctRegistrationRequest analyticsState = new ObejctRegistrationRequest
+        {
+            Key = $"Analytics-0",
+            Object = new AnalyticsState{Query = new Dictionary<long, double>()}
+        };
+        this.controller.RegisterKeyObject(analyticsState);
+
+        
+        // EXAMPLES FOR TESTS
+        // Example of processing checkout
+        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        // {
+        //     FunctionName = "ProcessCheckout",
+        //     Parameters = new object[] {0L, new Checkout(0, 10, 2)}
+        // });
+
+        // Thread.Sleep(3000);
+
+        // // Example of processing inventory
+        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        // {
+        //     FunctionName = "ProcessInventoryRequest",
+        //     Parameters = new object[] {0L, new Inventory(1, 1, 1)}
+        // });
+        
+        // Thread.Sleep(3000);
+        
+        // Example of processing NewCheckoutOrder
+        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        // {
+        //     FunctionName = "NewCheckoutOrder",
+        //     Parameters = new object[] {0L, new Checkout(0, 10, 2)}
+        // });
     }
 
     public async Task<Tuple<List<long>, bool>> GetAllInventory()
     {
-        var tasks = new List<Task<int>>();
-        for (int i = 0; i < numProductActor; i++)
+        var tasks = new List<Task<IActionResult>>();
+        for (long i = 0; i < numProductActor; i++)
         {
-            // this.controller.Get($"Product_{{{i}}}") // obs
-
-            /*
-            var productActor = client.GetGrain<IProductActor>(i);
-            tasks.Add(productActor.GetInventory());
-            */
-           
+            // Obs use of TestFunction to bypass mediator grain
+            // Can use when we do not want to initiate workflow, where the result is harder to get directly
+            tasks.Add(
+                this.controller.TestFunction(new FunctionExecutionRequest
+                    {
+                        FunctionName = "GetInventory",
+                        Parameters = new object[] {i}
+                    }
+                )
+            );
         }
         await Task.WhenAll(tasks);
 
         var hasEverGotNegativeInventory = false;
         var inventory = new List<long>();
         foreach (var task in tasks)
-        {
-            inventory.Add(task.Result);
-            if (task.Result < 0) hasEverGotNegativeInventory = true;
+        {   
+            var res = FunctionExecutionUnpacker<int>(task.Result, 0); // obs standard value for bad result
+            inventory.Add(res); 
+            if (res < 0) hasEverGotNegativeInventory = true;
         }
         return new Tuple<List<long>, bool>(inventory, hasEverGotNegativeInventory);
     }
@@ -155,6 +224,8 @@ internal class WorkloadGenerator
         var customerID = customerDistribution.Sample();
         var productID = productDistribution.Sample();
         var qty = customerQtyDistribution.Sample();
+     
+     
         throw new NotImplementedException();
         /*
         var price = await client.GetGrain<IProductActor>(productID).GetPrice();
