@@ -24,10 +24,9 @@ public static class OrleansClientManager
                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Infra"));
             }))
             .Build();
-         
+
         await client.StartAsync();
 
         return client.Services.GetService<IClusterClient>();
     }
 }
-

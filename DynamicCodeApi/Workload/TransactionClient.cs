@@ -1,32 +1,28 @@
-﻿using System.Diagnostics;
-using Workload;
-using Controller;
+﻿using Controller;
 using Infra.Interfaces;
-using Infra.Service;
-using DynamicCodeApi;
-using System.Drawing;
+using System.Diagnostics;
+using Workload;
 
 namespace DynamicCodeApi.Workload;
 
 internal class TransactionClient
 {
-
-    int numCustomerActor = 10;
-    int numProductActor = 100;
+    private int numCustomerActor = 10;
+    private int numProductActor = 100;
 
     // for experiment setting
-    int numCustomerThread = 8;
-    TimeSpan runTime = TimeSpan.FromSeconds(10);    // use this time to control how long time the experiment will run
+    private int numCustomerThread = 8;
+    private TimeSpan runTime = TimeSpan.FromSeconds(10);    // use this time to control how long time the experiment will run
 
-    CountdownEvent allThreadsStart;
-    CountdownEvent allThreadsAreDone;
+    private CountdownEvent allThreadsStart;
+    private CountdownEvent allThreadsAreDone;
 
-    RedisKVS redisKVS; 
-    CodeController controller;
+    private RedisKVS redisKVS;
+    private CodeController controller;
 
     internal TransactionClient()
     {
-        this.redisKVS = new RedisKVS(null); 
+        this.redisKVS = new RedisKVS(null);
         this.controller = new CodeController(this.redisKVS);
     }
 
@@ -84,7 +80,7 @@ internal class TransactionClient
     }
 
     // ================================================================================================================
-    async void CustomerWorkAsync(object obj)
+    private async void CustomerWorkAsync(object obj)
     {
         var thread = (int)obj;
         var numEmitTransaction = 0;
@@ -107,7 +103,4 @@ internal class TransactionClient
                             $"Total time elapsed = {totalTime}");
         allThreadsAreDone.Signal();
     }
-     
 }
-
-

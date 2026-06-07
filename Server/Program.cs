@@ -1,11 +1,10 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using Infra;
+using Infra.Interfaces;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Orleans.Configuration;
 using Orleans.Serialization;
-using Infra;
-using Microsoft.Extensions.DependencyInjection;
-using Infra.Interfaces;
-using Infra.Kafka;
 
 using var host = new HostBuilder()
     .UseOrleans(builder =>
@@ -28,7 +27,7 @@ using var host = new HostBuilder()
                 ser.AddNewtonsoftJsonSerializer(isSupported: type => type.Namespace.StartsWith("Infra"));
             })
             .AddSingleton<IKeyValueStore, RedisKVS>();
-            ;
+        ;
     })
     .Build();
 

@@ -1,10 +1,7 @@
 ﻿using Confluent.Kafka;
+using Infra.EventSchema;
 using Infra.Service;
 using Orleans.Concurrency;
-using Infra.Interfaces;
-using Infra.Kafka;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Infra.EventSchema;
 
 namespace Infra.Kafka;
 
@@ -47,26 +44,27 @@ public class MediatorGrain : Grain, IMediatorGrain
             this._offset = Offset.End;
 
         var consumerConfig = new ConsumerConfig
-    	{
+        {
             GroupId = GroupId,
             BootstrapServers = Constants.KafkaService,
             EnableAutoCommit = false
-    	};
+        };
 
-    	this._consumer = new ConsumerBuilder<string, Event>(consumerConfig)
+        this._consumer = new ConsumerBuilder<string, Event>(consumerConfig)
             .SetValueDeserializer(new EventSerializer())
             .Build();
 
-        var topicPartitionOffset = 
-                  new TopicPartitionOffset(this._topic, new Partition(this._partition), this._offset); 
+        var topicPartitionOffset =
+                  new TopicPartitionOffset(this._topic, new Partition(this._partition), this._offset);
 
         this._consumer.Assign(topicPartitionOffset);
 
         this.executor = GrainFactory.GetGrain<IExecutorGrain>(0);
 
-    	Task.Run(() => StartConsuming(this.cancellationToken), this.cancellationToken);
+        Task.Run(() => StartConsuming(this.cancellationToken), this.cancellationToken);
 
-        var producerConfig = new ProducerConfig {
+        var producerConfig = new ProducerConfig
+        {
             BootstrapServers = Constants.KafkaService,
             AllowAutoCreateTopics = true
         };
@@ -83,7 +81,7 @@ public class MediatorGrain : Grain, IMediatorGrain
     }
 
     private async Task<bool> StartEventWorkflow(Event @event)
-	{
+    {
         try
         {
             Console.WriteLine($"EVENT: {@event.functionName} : {@event.parameters}");
@@ -108,7 +106,7 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     // Turned StartWorkflow into public wrapper method 
     public async Task<bool> StartWorkflow(string functionName, object[] parameters)
-	{
+    {
         // Assemble function name and parameters into an event object
         var @event = new Event(functionName, parameters);
         return await StartEventWorkflow(@event);
@@ -135,8 +133,8 @@ public class MediatorGrain : Grain, IMediatorGrain
                 }
             }
         }
-        catch (Exception ex) 
-        { 
+        catch (Exception ex)
+        {
             Console.WriteLine($"Consumer loop error: {ex}");
         }
         finally
@@ -150,9 +148,9 @@ public class MediatorGrain : Grain, IMediatorGrain
         return parameters.Select(p =>
         {
             if (p is Newtonsoft.Json.Linq.JArray jArray)
-                return (object)jArray.ToObject<object[]>();
+                return jArray.ToObject<object[]>();
             if (p is Newtonsoft.Json.Linq.JObject jObj)
-                return (object)jObj;
+                return jObj;
             return p;
         }).ToArray();
     }
@@ -201,7 +199,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         {
             Console.WriteLine($"Terminal result: {result}");
         }
-    
+
         return;
     }
 
@@ -211,4 +209,3 @@ public class MediatorGrain : Grain, IMediatorGrain
         return Task.CompletedTask;
     }
 }
-

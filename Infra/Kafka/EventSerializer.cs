@@ -16,7 +16,8 @@ public class EventSerializer : ISerializer<Event>, IDeserializer<Event>
 
     public Event Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext _)
     {
-        if (isNull) {
+        if (isNull)
+        {
             Console.WriteLine("Data received is null!");
             return null;
         }

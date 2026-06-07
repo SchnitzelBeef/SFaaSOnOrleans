@@ -1,12 +1,11 @@
-﻿using System.Collections.Concurrent;
-using System.Reflection;
+﻿using Infra.EventSchema;
 using Infra.Interfaces;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
-using Infra.EventSchema;
-using System.Runtime.InteropServices;
+using System.Collections.Concurrent;
+using System.Reflection;
 namespace Infra.Service;
 
 [Reentrant]
@@ -31,7 +30,7 @@ public class ExecutorGrain : Grain, IExecutorGrain
     }
 
     public ExecutorGrain(IKeyValueStore kvs, ILogger<ExecutorGrain> logger)
-	{
+    {
         this.kvs = kvs;
         this.logger = logger;
     }
@@ -86,7 +85,7 @@ public class ExecutorGrain : Grain, IExecutorGrain
         return method.Invoke(instance, new object[] { parameters });
     }
 
-	public static Assembly CompileAssembly(string functionName, string code)
+    public static Assembly CompileAssembly(string functionName, string code)
     {
         // Compile the wrapped code
         var syntaxTree = CSharpSyntaxTree.ParseText(code);
@@ -116,5 +115,4 @@ public class ExecutorGrain : Grain, IExecutorGrain
         ms.Seek(0, SeekOrigin.Begin);
         return Assembly.Load(ms.ToArray());
     }
-
 }

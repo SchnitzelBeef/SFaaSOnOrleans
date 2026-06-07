@@ -17,4 +17,3 @@ public class Constants
     public const string RedisPrimary = "127.0.0.1:6379";
     public const string RedisSecondary = "127.0.0.1:6380";
 }
-

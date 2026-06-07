@@ -1,11 +1,8 @@
-using Infra.Interfaces;
-using DynamicCodeApi.Workload;
-using Infra.Interfaces;
-using Infra.Service;
 using DynamicCodeApi;
-using Infra.Kafka;
+using DynamicCodeApi.Workload;
 using Infra;
-using Controller;
+using Infra.Interfaces;
+using Infra.Kafka;
 
 var sharedClient = OrleansClientManager.GetClient().Result;
 
@@ -40,7 +37,7 @@ Thread thread = new Thread(work);
 thread.Start();
 
 // wait for the HTTP server to start, this is probably not the best way to do this
-Thread.Sleep(5000); 
+Thread.Sleep(5000);
 
 //obs, temporary setup
 // only uses single mediator grain - should be divided into proper Kafka partitions and Topics
