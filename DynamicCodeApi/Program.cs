@@ -77,11 +77,11 @@ Console.WriteLine($"Function composed: {controller.RegisterComposition(composedF
 var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator"); //obs, temporary setup
 await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
 
-await controller.ExecuteFunction(new FunctionExecutionRequest
-{
-    FunctionName = "AddThenIncrement",
-    Parameters = new object[] { 10L, 20L }
-});
+// await controller.ExecuteFunction(new FunctionExecutionRequest
+// {
+//     FunctionName = "AddThenIncrement",
+//     Parameters = new object[] { 10L, 20L }
+// });
 
 
 Thread.Sleep(2000);

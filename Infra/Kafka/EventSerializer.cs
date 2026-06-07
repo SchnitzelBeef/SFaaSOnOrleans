@@ -5,7 +5,8 @@ namespace Infra.Kafka;
 
 public class EventSerializer : ISerializer<Event>, IDeserializer<Event>
 {
-    private readonly MessagePackSerializerOptions options = MessagePackSerializerOptions.Standard.WithResolver(MessagePack.Resolvers.ContractlessStandardResolver.Instance);
+    private readonly MessagePackSerializerOptions options = MessagePackSerializerOptions.Standard
+        .WithResolver(MessagePack.Resolvers.TypelessContractlessStandardResolver.Instance);
 
     public byte[] Serialize(Event e, SerializationContext _)
     {
@@ -16,7 +17,7 @@ public class EventSerializer : ISerializer<Event>, IDeserializer<Event>
     public Event Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext _)
     {
         if (isNull) {
-                Console.WriteLine("Data received is null!");
+            Console.WriteLine("Data received is null!");
             return null;
         }
         var e = MessagePackSerializer.Deserialize<Event>(data.ToArray(), options);

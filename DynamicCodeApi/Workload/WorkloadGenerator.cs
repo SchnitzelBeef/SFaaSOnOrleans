@@ -3,6 +3,8 @@ using Controller;
 using DynamicCodeApi;
 using MathNet.Numerics.Distributions;
 using Infra.EcommerceStates;
+using Infra.EcommerceFunctions;
+using Infra.EventSchema;
 
 namespace Workload;
 
@@ -20,11 +22,16 @@ internal class WorkloadGenerator
     IDiscreteDistribution customerBalanceDistribution;// the customer balance
     IDiscreteDistribution customerQtyDistribution;    // max qty a customer can buy for a product
 
-    public WorkloadGenerator(int numCustomerActor, int numProductActor)
+    // Used to issue requests to RedisKSV
+    // Maybe a bit overkill since we can call the functions directly without HTTP wrappers
+    CodeController controller;
+
+    public WorkloadGenerator(int numCustomerActor, int numProductActor, CodeController controller)
     {
          
         this.numCustomerActor = numCustomerActor;
         this.numProductActor = numProductActor;
+        this.controller = controller;
         // it will generate samples within range [a, b]
         customerDistribution = new DiscreteUniform(0, this.numCustomerActor - 1, new Random());
         productDistribution = new DiscreteUniform(0, this.numProductActor - 1, new Random());
@@ -44,35 +51,56 @@ internal class WorkloadGenerator
         isClientConnected = true;
     }
 
-    public async Task InitAllActors(CodeController controller)
+    public async Task InitAllActors()
     {
         // We must init all actors with an initial state in the Redis KVS:
+
+        // ------ Customer ------
+
         for (int i = 0; i < numCustomerActor; i++)
         {
-            KeyValueRequest customerState = new KeyValueRequest
+            ObejctRegistrationRequest customerState = new ObejctRegistrationRequest
             {
-                Key = $"Customer-{{{i}}}",
-                Value = $"{new CustomerState(customerBalanceDistribution.Sample())};"
+                Key = $"Customer-{i}",
+                Object = new CustomerState{Balance = customerBalanceDistribution.Sample()}
             };
-            controller.RegisterKeyValue(customerState);
+            this.controller.RegisterKeyObject(customerState);
         }
 
-        for (int i = 0; i < numProductActor; i++)
+        this.controller.RegisterFunction(new CodeRegistrationRequest
         {
-            KeyValueRequest productState = new KeyValueRequest
-            {
-                Key = $"Product-{{{i}}}",
-                Value = $"{new ProductState(productPriceDistribution.Sample(), productQtyDistribution.Sample())};"
-            };
-            controller.RegisterKeyValue(productState);
-        }
+            FunctionName = "ProcessCheckout",
+            Code = CustomerFunctions.GetProcessCheckout()
 
-        KeyValueRequest analyticsState = new KeyValueRequest
+        });
+
+        // Example of processing checkout
+        await this.controller.ExecuteFunction(new FunctionExecutionRequest
         {
-            Key = $"Analytics-{{0}}",
-            Value = $"{new AnalyticsState()};"
-        };
-        controller.RegisterKeyValue(analyticsState);
+            FunctionName = "ProcessCheckout",
+            Parameters = new object[] {0L, new Checkout(0, 10, 2)}
+        });
+
+        // // ------ Products ------
+
+        // for (int i = 0; i < numProductActor; i++)
+        // {
+        //     KeyValueRequest productState = new KeyValueRequest
+        //     {
+        //         Key = $"Product-{i}",
+        //         Value = $"{new ProductState(productPriceDistribution.Sample(), productQtyDistribution.Sample())};"
+        //     };
+        //     this.controller.RegisterKeyValue(productState);
+        // }
+
+        // // ------ Analytics ------
+
+        // KeyValueRequest analyticsState = new KeyValueRequest
+        // {
+        //     Key = $"Analytics-0",
+        //     Value = $"{new AnalyticsState()};"
+        // };
+        // this.controller.RegisterKeyValue(analyticsState);
 
         // Code commented out in handout code
         // throw new NotImplementedException();
@@ -102,7 +130,8 @@ internal class WorkloadGenerator
         var tasks = new List<Task<int>>();
         for (int i = 0; i < numProductActor; i++)
         {
-            
+            // this.controller.Get($"Product_{{{i}}}") // obs
+
             /*
             var productActor = client.GetGrain<IProductActor>(i);
             tasks.Add(productActor.GetInventory());

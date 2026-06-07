@@ -5,7 +5,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
-
+using Infra.EventSchema;
+using System.Runtime.InteropServices;
 namespace Infra.Service;
 
 [Reentrant]
@@ -53,7 +54,9 @@ public class ExecutorGrain : Grain, IExecutorGrain
             using Microsoft.CodeAnalysis;
             using Microsoft.CodeAnalysis.CSharp;
             using Infra.Interfaces;
-
+            using Infra.EventSchema;
+            using Infra.EcommerceStates;
+    
             public class DynamicClass
             {{
                 private readonly IKeyValueStore kvs;
@@ -66,7 +69,7 @@ public class ExecutorGrain : Grain, IExecutorGrain
                     return null; // Fallback for functions not returning result
                 }}
             }}";
-
+            
             // Compile the assembly
             var assembly = CompileAssembly(functionName, wrappedCode);
             var type = assembly.GetType("DynamicClass");
@@ -90,6 +93,8 @@ public class ExecutorGrain : Grain, IExecutorGrain
             .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
             .Select(a => MetadataReference.CreateFromFile(a.Location))
             .ToList();
+
+        references.Add(MetadataReference.CreateFromFile(typeof(Checkout).Assembly.Location));
 
         var compilation = CSharpCompilation.Create(
             $"{functionName}_Assembly",

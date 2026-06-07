@@ -34,11 +34,13 @@ internal class TransactionClient
 
         // ================================================================================================================
         // STEP 1: init all actors
-        var workload = new WorkloadGenerator(numCustomerActor, numProductActor);
-        await workload.InitAllActors(this.controller);
+        var workload = new WorkloadGenerator(numCustomerActor, numProductActor, this.controller);
+        await workload.InitAllActors();
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
-        return; // OBS
+        
+        return; // obs
+
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();
@@ -80,7 +82,7 @@ internal class TransactionClient
     {
         var thread = (int)obj;
         var numEmitTransaction = 0;
-        var workload = new WorkloadGenerator(numCustomerActor, numProductActor);
+        var workload = new WorkloadGenerator(numCustomerActor, numProductActor, this.controller);
         var watch = new Stopwatch();
 
         allThreadsStart.Signal();

@@ -1,4 +1,4 @@
-﻿namespace ECommerce.Olep.Schema
+﻿namespace Infra.EventSchema
 {
     public enum Status
     {

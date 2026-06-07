@@ -1,6 +1,6 @@
 ﻿using MessagePack;
 
-namespace ECommerce.Olep.Schema
+namespace Infra.EventSchema
 {
     [MessagePackObject]
     public sealed class Inventory

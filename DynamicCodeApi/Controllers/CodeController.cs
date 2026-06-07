@@ -12,10 +12,16 @@ public class CodeRegistrationRequest
     public string Code { get; set; }
 }
 
-public class KeyValueRequest
+public class ValueRegistrationRequest
 {
     public string Key { get; set; }
     public string Value { get; set; }
+}
+
+public class ObejctRegistrationRequest
+{
+    public string Key { get; set; }
+    public Object Object { get; set; }
 }
 
 public class KeyValueGetRequest
@@ -57,13 +63,14 @@ public class CodeController : ControllerBase
             return BadRequest("Function name and code must be provided.");
 
         if(this.kvs.PutString(request.FunctionName, request.Code))
+            Console.WriteLine($"Function '{request.FunctionName}' registered := {request.Code}");
             return Ok($"Function '{request.FunctionName}' registered successfully.");
         return BadRequest($"Error registering function: {request.FunctionName}");
     }
 
-    // Register key-value, could also simply use 'RegisterFunction' instead
-    [HttpPost("registerKV")]
-    public IActionResult RegisterKeyValue([FromBody] KeyValueRequest request)
+    // Register key-value, could also use 'RegisterFunction' instead
+    [HttpPost("registerVal")]
+    public IActionResult RegisterKeyValue([FromBody] ValueRegistrationRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Key) || string.IsNullOrWhiteSpace(request.Value))
             return BadRequest("Key and value must be provided.");
@@ -72,6 +79,20 @@ public class CodeController : ControllerBase
             return Ok($"Key '{request.Key}' registered successfully.");
         return BadRequest($"Error registering function: {request.Key}");
     }
+
+
+    // Register key-value (object), could also most likely use 'RegisterFunction' instead
+    [HttpPost("registerObj")]
+    public IActionResult RegisterKeyObject([FromBody] ObejctRegistrationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Key))
+            return BadRequest("Key must be provided.");
+
+        if(this.kvs.Put(request.Key, request.Object))
+            return Ok($"Key '{request.Key}' registered successfully.");
+        return BadRequest($"Error registering function: {request.Key}");
+    }
+
 
     // compose function (added)
     [HttpPost("compose")]
@@ -93,9 +114,6 @@ public class CodeController : ControllerBase
         string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName);
         string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName);
 
-        Console.WriteLine($"First function code: {firstCode}");
-        Console.WriteLine($"Second function code: {secondCode}");
-
         string composedCode = $@"
             System.Func<object[], object> first = args => {{
                 {firstCode}
@@ -113,9 +131,9 @@ public class CodeController : ControllerBase
         //     }};
         //     return second(new object[] {{ first(args) }});";
 
-        Console.WriteLine($"Composed function code: {composedCode}");
 
         if(this.kvs.PutString(request.FunctionName, composedCode))
+            Console.WriteLine($"Composed function '{request.FunctionName}' registered := {composedCode}");
             return Ok($"Function '{request.FunctionName}' registered successfully.");
         return BadRequest($"Error registering function: {request.FunctionName}");
     }
@@ -140,7 +158,7 @@ public class CodeController : ControllerBase
 
     // Test get value from KVS
     [HttpPost("get")]
-    public async Task<IActionResult> GetValue([FromBody] KeyValueGetRequest request)
+    public async Task<IActionResult> Get([FromBody] KeyValueGetRequest request)
     {
         var res = this.kvs.GetString(request.Key);
         if (res == null){
