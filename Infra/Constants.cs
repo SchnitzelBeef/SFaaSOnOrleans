@@ -9,12 +9,12 @@ public class Constants
     public const string CheckoutNamespace = "checkout";
     public const string CustomerNamespace = "customer";
     public const string InventoryNamespace = "inventory";
-    public const string KafkaService = "localhost:9092";
-    public const string ZooKeeperService = "localhost:2181";
+    public const string KafkaService = "127.0.0.1:9092";
+    public const string ZooKeeperService = "127.0.0.1:2181";
     public const string CheckoutTopicGroup = "checkout-group";
     public const string InventoryTopicGroup = "inventory-group";
     public const string OutcomeTopicGroup = "outcome-group";
-    public const string RedisPrimary = "localhost:6379";
-    public const string RedisSecondary = "localhost:6380";
+    public const string RedisPrimary = "127.0.0.1:6379";
+    public const string RedisSecondary = "127.0.0.1:6380";
 }
 
