@@ -139,11 +139,29 @@ var composedFunc3 = new FunctionCompositionRequest
     }
 };
 
-Console.WriteLine($"Function registered: {controller.RegisterFunction(foo)}");
-Console.WriteLine($"Function registered: {controller.RegisterFunction(bar)}");
-Console.WriteLine($"Function registered: {controller.RegisterFunction(complex)}");
-Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc)}");
-Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc2)}");
+var simple = new CodeRegistrationRequest
+{
+    FunctionName = "RetType",
+    Code = "return new Inventory(1, 123.123, 2);",
+};
+
+var simpleComp = new FunctionCompositionRequest
+{
+    FunctionName = "RetTypeComp",
+    Root = new CompositionAST
+    {
+        FunctionName = "RetType",
+        ChildrenInOrder = new CompositionAST[] { },
+    }
+};
+
+Console.WriteLine($"\nFunction registered: {controller.RegisterFunction(foo)}");
+Console.WriteLine($"\nFunction registered: {controller.RegisterFunction(bar)}");
+Console.WriteLine($"\nFunction registered: {controller.RegisterFunction(complex)}");
+Console.WriteLine($"\nFunction registered: {controller.RegisterFunction(simple)}");
+Console.WriteLine($"\nFunction composed: {controller.RegisterComposition(composedFunc)}");
+Console.WriteLine($"\nFunction composed: {controller.RegisterComposition(composedFunc2)}");
+Console.WriteLine($"\nFunction composed: {controller.RegisterComposition(simpleComp)}");
 
 // Execute function through the mediator grain to test end-to-end functionality
 /*await controller.ExecuteFunction(new FunctionExecutionRequest
@@ -151,11 +169,17 @@ Console.WriteLine($"Function composed: {controller.RegisterComposition(composedF
     FunctionName = "AddThenIncrement",
     Parameters = new object[] { 10L, 20L }
 });*/
-
+/*
 await controller.ExecuteFunction(new FunctionExecutionRequest
 {
     FunctionName = "BranchedComposition",
     Parameters = new object[] { 0L }
+});*/
+
+await controller.ExecuteFunction(new FunctionExecutionRequest
+{
+    FunctionName = "RetTypeComp",
+    Parameters = new object[] { }
 });
 
 Console.WriteLine("Finished with dev tests");
