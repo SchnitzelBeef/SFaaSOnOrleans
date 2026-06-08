@@ -20,7 +20,7 @@ internal class TransactionClient
     private RedisKVS redisKVS;
     private CodeController controller;
 
-    internal TransactionClient()
+    public TransactionClient()
     {
         this.redisKVS = new RedisKVS(null);
         this.controller = new CodeController(this.redisKVS);
@@ -45,7 +45,6 @@ internal class TransactionClient
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();
         Console.WriteLine($"Before total amount: {before_totalAmount}");
-        return; // obs, returns prematurely
 
         // ================================================================================================================
         // STEP 3: spawn multiple threads to submit transactions

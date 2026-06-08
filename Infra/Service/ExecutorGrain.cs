@@ -50,6 +50,8 @@ public class ExecutorGrain : Grain, IExecutorGrain
             string wrappedCode = $@"
             using System;
             using System.Reflection;
+            using System.Linq;
+            using System.Collections.Generic;
             using Microsoft.CodeAnalysis;
             using Microsoft.CodeAnalysis.CSharp;
             using Infra.Interfaces;

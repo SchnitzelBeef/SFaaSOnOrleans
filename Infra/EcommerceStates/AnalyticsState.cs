@@ -1,12 +1,10 @@
 ﻿using MessagePack;
-using System.Text.Json;
 
 namespace Infra.EcommerceStates
 {
     [MessagePackObject]
     public class AnalyticsState
     {
-        // [Key(0)]
         public Dictionary<long, double> Query { get; set; }
 
         // Use a dictionary of hashSets so each Kafka Partition is a key into the the dictionary

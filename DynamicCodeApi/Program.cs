@@ -1,5 +1,6 @@
 using Controller;
 using DynamicCodeApi;
+using DynamicCodeApi.Workload;
 using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
@@ -91,9 +92,9 @@ await controller.ExecuteFunction(new FunctionExecutionRequest
 
 Console.WriteLine("Finished with dev tests");
 
-Thread.Sleep(2000);
+Thread.Sleep(4000);
 
 // Run transaction client (using new RedisKVS)
-//var transactionClient = new TransactionClient();
-//await transactionClient.RunClient();
+var transactionClient = new TransactionClient();
+await transactionClient.RunClient();
 return;

@@ -63,6 +63,12 @@ internal class WorkloadGenerator
             Code = CustomerFunctions.GetProcessCheckoutFunction()
         });
 
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "ProcessOutcome",
+            Code = CustomerFunctions.GetProcessOutcomeFunction()
+        });
+
         // Not really necessary, since we can get the balance directly in the RedisKVS
         this.controller.RegisterFunction(new CodeRegistrationRequest
         {
@@ -95,14 +101,37 @@ internal class WorkloadGenerator
 
         // ------ Analytics functions ------
 
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "GetUpdateAsync",
+            Code = AnalyticsFunctions.GetGetUpdateAsyncFunction()
+        });
+
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "Top10",
+            Code = AnalyticsFunctions.GetTop10Function()
+        });
+
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "CustomerOutcomeProcessedCount",
+            Code = AnalyticsFunctions.GetCustomerOutcomeProcessedCountFunction()
+        });
+
+        this.controller.RegisterFunction(new CodeRegistrationRequest
+        {
+            FunctionName = "GetSumOfAllBalance",
+            Code = AnalyticsFunctions.GetGetSumOfAllBalanceFunction()
+        });
 
 
         // ------ Workflows ------
-        this.controller.RegisterComposition(new FunctionCompositionRequest
-        {
-            FunctionName = "NewCheckoutOrder",
-            CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
-        });
+        // this.controller.RegisterComposition(new FunctionCompositionRequest
+        // {
+        //     FunctionName = "NewCheckoutOrder",
+        //     CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
+        // });
 
     }
 
@@ -115,7 +144,7 @@ internal class WorkloadGenerator
         }
         else if (result is BadRequestObjectResult bad)
         {
-            Console.WriteLine($"Error: God bad reuslt '{bad}' when unpacking HTTP function execution result");
+            Console.WriteLine($"Error: Got bad result '{bad}' when unpacking HTTP function execution result");
         }
         return bad_result;
     }
@@ -217,6 +246,7 @@ internal class WorkloadGenerator
         return new Tuple<List<long>, bool>(inventory, hasEverGotNegativeInventory);
     }
 
+    // OBS: Should be implemented. Waiting for composition to work
     public async Task NewCheckOutOrder()
     {
         var customerID = customerDistribution.Sample();
@@ -224,7 +254,8 @@ internal class WorkloadGenerator
         var qty = customerQtyDistribution.Sample();
 
 
-        throw new NotImplementedException();
+        // throw new NotImplementedException();
+
         /*
         var price = await client.GetGrain<IProductActor>(productID).GetPrice();
 
@@ -238,10 +269,23 @@ internal class WorkloadGenerator
 
     public async Task<string> GetTopTen()
     {
-        List<KeyValuePair<long, double>> res = null;
-        // res = await client.GetGrain<IAnalyticsActor>(0).Top10();
+        
+        var res = await this.controller.TestFunction(new FunctionExecutionRequest
+            {
+                FunctionName = "Top10",
+                Parameters = new object[] { }
+            }
+        );
+
+        var unpacked_res = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(res, null);
+
+        if (unpacked_res == null)
+        {
+            return "Function execution error in controller when fetching Top10 from Analytics-0";
+        }
+
         StringBuilder sb = new StringBuilder();
-        foreach (KeyValuePair<long, double> kv in res)
+        foreach (KeyValuePair<long, double> kv in unpacked_res)
         {
             sb.Append(kv.Key);
             sb.Append(" : ");

@@ -53,9 +53,9 @@ namespace Infra.EcommerceFunctions
             });
 
             var code = $@"
-                    {args_code}
-                    var key = ""Product-"" + id;
-                    return kvs.Get<ProductState>(key).Price;
+                {args_code}
+                var key = ""Product-"" + id;
+                return kvs.Get<ProductState>(key).Price;
             ";
 
             return code;
@@ -69,9 +69,9 @@ namespace Infra.EcommerceFunctions
             });
 
             var code = $@"
-                    {args_code}
-                    var key = ""Product-"" + id;
-                    return kvs.Get<ProductState>(key).Quantity;
+                {args_code}
+                var key = ""Product-"" + id;
+                return kvs.Get<ProductState>(key).Quantity;
             ";
 
             return code;

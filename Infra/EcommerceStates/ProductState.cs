@@ -6,11 +6,8 @@ namespace Infra.EcommerceStates
     [MessagePackObject]
     public class ProductState
     {
-        // [Key(0)]
         public int Quantity { get; set; }
-        // [Key(1)]
         public double Price { get; set; }
-        // [Key(2)]
         // public Dictionary<int, long> LastInventoryEventSequenceNumbers { get; set; }
     }
 }

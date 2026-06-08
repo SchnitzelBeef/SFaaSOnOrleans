@@ -1,64 +1,90 @@
-﻿// namespace Infra.EcommerceFunctions
-// {
+﻿using Infra.EventSchema;
+namespace Infra.EcommerceFunctions
+{
 
-//     public static class AnalyticsFunctions
-//     {
+    public static class AnalyticsFunctions
+    {
 
-//         public static string GetGetUpdateAsyncFunction()
-//         {
-//             // If checkout is successful, update the total sales for the corresponding product
-//             if (outcome.status == Status.OK)
-//             {
-//                 var previous = this.state.Query.GetValueOrDefault(outcome.customerId, 0);
-//                 this.state.Query[outcome.customerId] = previous + outcome.total;
-//             }
+        public static string GetGetUpdateAsyncFunction()
+        {
 
-//             // Increment the debug counter for end-to-end latency metrics.
-//             var previousCount = this.state.DebugQuery.GetValueOrDefault(outcome.customerId, 0);
-//             this.state.DebugQuery[outcome.customerId] = previousCount + 1;
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
+            {
+                // (typeof(long), "id"), // There is only "Analytics-0"
+                (typeof(Outcome), "outcome")
+            });
 
-//             // The request has now been processed fully and we note the sequence number (timestamp) on the token to be able to ignore duplicates later
-//             if (token is KafkaSequenceToken _concreteToken)
-//             {
-//                 if (state.ProcessedOutcomeEvent.ContainsKey(_concreteToken.EventIndex))
-//                 {
+            var code = $@"
+                {args_code}
+                var key = ""Analytics-0"";
+                var customerId = (long)outcome.customerId;
+                var productId = (long)outcome.productId;
+                var total = (double)outcome.total;
+                var status = (Status)Status.status;
 
-//                     while (state.ProcessedOutcomeEvent[_concreteToken.EventIndex].Count() >= Constants.StoreCapacity)
-//                     {
-//                         long oldestOffset = state.ProcessedOutcomeEvent[_concreteToken.EventIndex].Min();
-//                         state.ProcessedOutcomeEvent[_concreteToken.EventIndex].Remove(oldestOffset);
-//                     }
-//                     state.ProcessedOutcomeEvent[_concreteToken.EventIndex].Add(_concreteToken.SequenceNumber);
-//                 }
-//                 else
-//                 {
-//                     state.ProcessedOutcomeEvent.Add(
-//                         _concreteToken.EventIndex,
-//                         new HashSet<long>(Constants.StoreCapacity)
-//                         {
-//                             _concreteToken.SequenceNumber
-//                         }
-//                     );
-//                 }
-//             }
-//             return Task.CompletedTask;
-//         }
+                // If checkout is successful, update the total sales for the corresponding product
+                if (status == Status.OK)
+                {{
+                    // We update a pointer so we most likely do not  have to perform kvs.Put here
+                    var reference = kvs.Get<AnalyticsState>(key).Query; 
+                    var previous = reference.GetValueOrDefault(customerId, 0);
+                    reference[customerId] = previous + total;
+                }}
 
-//         public async Task<List<KeyValuePair<long, double>>> Top10()
-//         {
-//             // Get top ten customers by their value
-//             var top10 = this.state.Query.OrderByDescending(kv => kv.Value).Take(10).ToList();
-//             return await Task.FromResult(top10);
-//         }
+                // ** Currently not implemented
+                // Increment the debug counter for end-to-end latency metrics.
+                // var previousCount = this.state.DebugQuery.GetValueOrDefault(outcome.customerId, 0);
+                // this.state.DebugQuery[outcome.customerId] = previousCount + 1;
 
-//         public async Task<int> CustomerOutcomeProcessedCount(long customerId)
-//         {
-//             return this.state.DebugQuery.GetValueOrDefault(customerId, 0);
-//         }
+            ";
 
-//         public async Task<double> GetSumOfAllBalance()
-//         {
-//             return await Task.FromResult(this.state.Query.Values.Sum());
-//         }
-//     }
-// }
+            return code;
+        }
+
+        public static string GetTop10Function()
+        {
+            // We only have one "actor" for analytics, so we don't accept parameter currently
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+
+            var code = $@"
+                {args_code}
+                var key = ""Analytics-0"";
+                return kvs.Get<AnalyticsState>(key).Query.OrderByDescending(kv => kv.Value).Take(10).ToList();
+            ";
+
+            return code;
+        }
+
+        // OBS, not implemented currently
+        public static string GetCustomerOutcomeProcessedCountFunction()
+        {
+            return $@"return ""Debug Query not implemented, used in this call to CustomerOutcomeProcessedCount"";";
+
+            // We only have one "actor" for analytics, so we don't accept parameter currently
+            // var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+            // var code = $@"
+            //         {args_code}
+            //         var key = ""Analytics-0"";
+            //         return kvs.Get<AnalyticsState>(key).Query.Sum();
+            // ";
+            // return code;
+
+            // return this.state.DebugQuery.GetValueOrDefault(customerId, 0);
+        }
+
+        public static string GetGetSumOfAllBalanceFunction()
+
+        {   
+            // We only have one "actor" for analytics, so we don't accept parameter currently
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+
+            var code = $@"
+                {args_code}
+                var key = ""Analytics-0"";
+                return kvs.Get<AnalyticsState>(key).Query.Sum();
+            ";
+
+            return code;
+        }
+    }
+}
