@@ -4,13 +4,10 @@ namespace Infra.EcommerceFunctions
 
     public static class AnalyticsFunctions
     {
-
-        public static string GetGetUpdateAsyncFunction()
+        public static string GetUpdateAsyncFunction()
         {
-
             var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
             {
-                // (typeof(long), "id"), // There is only "Analytics-0"
                 (typeof(Outcome), "outcome")
             });
 
@@ -34,7 +31,6 @@ namespace Infra.EcommerceFunctions
                 // Increment the debug counter for end-to-end latency metrics.
                 // var previousCount = this.state.DebugQuery.GetValueOrDefault(outcome.customerId, 0);
                 // this.state.DebugQuery[outcome.customerId] = previousCount + 1;
-
             ";
 
             return code;
@@ -43,7 +39,7 @@ namespace Infra.EcommerceFunctions
         public static string GetTop10Function()
         {
             // We only have one "actor" for analytics, so we don't accept parameter currently
-            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> { });
 
             var code = $@"
                 {args_code}
@@ -57,7 +53,7 @@ namespace Infra.EcommerceFunctions
         public static string GetCustomerOutcomeProcessedCountFunction()
         {
             // We only have one "actor" for analytics, so we don't accept parameter currently
-            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> { });
 
             var code = $@"
                 {args_code}
@@ -70,9 +66,9 @@ namespace Infra.EcommerceFunctions
 
         public static string GetGetSumOfAllBalanceFunction()
 
-        {   
+        {
             // We only have one "actor" for analytics, so we don't accept parameter currently
-            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> { });
 
             var code = $@"
                 {args_code}

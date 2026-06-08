@@ -5,8 +5,6 @@ namespace Infra.EcommerceFunctions
 
     public static class ProductFunctions
     {
-
-        
         public static string GetProcessInventoryRequestFunction()
         {
             var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
@@ -16,7 +14,7 @@ namespace Infra.EcommerceFunctions
             });
             var code = $@"
                 {args_code}
-                var key = ""Customer-"" + id;
+                var key = ""Product-"" + id;
                 var request_customerId = (long)inventory.customerId;
                 var request_price = (double)inventory.price;
                 var request_quantity = (int)inventory.quantity;
@@ -36,9 +34,9 @@ namespace Infra.EcommerceFunctions
                     kvs.Put(key, new ProductState{{Quantity = current_quantity - request_quantity, Price = current_price}});
                 }}
 
-                // Get outcome stream and send OK balance message to analytics actor   
+                // Get outcome stream and send OK balance message to analytics actor
                 var outcomeEvent = new Outcome(request_customerId, id, request_price * request_quantity, Status.OK);
-                return new object[] {{ request_customerId, outcomeEvent }};
+                return outcomeEvent;
             ";
 
             return code;

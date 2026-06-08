@@ -11,7 +11,7 @@ namespace Infra.EcommerceFunctions
                 (typeof(long), "id"),
                 (typeof(Checkout), "checkout")
             });
-            
+
             var code = $@"
                 {args_code}
                 var key = ""Customer-"" + id;
@@ -25,7 +25,7 @@ namespace Infra.EcommerceFunctions
                 {{
                     // Get outcome log and send insufficient balance message to analytics actor      
                     var outcomeEvent = new Outcome(id, productId, total, Status.INSUFFICIENT_BALANCE);
-                    return new object[] {{ id, outcomeEvent }};
+                    return new Tuple<int, object>(0, outcomeEvent);
                 }}
 
                 // Reserve balance
@@ -33,11 +33,7 @@ namespace Infra.EcommerceFunctions
                 kvs.Put(key, new CustomerState{{Balance = balance - total}});
 
                 var inventoryEvent = new Inventory(id, price, quantity);
-                return new object[] {{ productId, inventoryEvent }};
-
-                // If returning the 'Inventory' type does not work (due to serializer):
-                // I believe it works with inventory, but this is a fallback method
-                // return new object[] {{ productId, id, price, quantity }};
+                return new Tuple<int, object>(1, new object[] {{ productId, inventoryEvent }});
             ";
 
             return code;
@@ -58,7 +54,7 @@ namespace Infra.EcommerceFunctions
                 return;
             ";
 
-            return code; 
+            return code;
         }
 
         // This function is not really necessary, since we can fetch the balance directly in the RedisKVS

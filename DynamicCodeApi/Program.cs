@@ -1,4 +1,3 @@
-using Controller;
 using DynamicCodeApi;
 using DynamicCodeApi.Workload;
 using Infra;
@@ -45,6 +44,8 @@ Thread.Sleep(5000);
 // and initiated inside transaction client/workload generator  
 var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator");
 await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
+
+/*
 
 // Test-setup, should not be part of final hand in
 // Just used to test that we can submit functions to the Redis KVS and execute them through the mediator grain
@@ -168,7 +169,6 @@ Console.WriteLine($"\nFunction composed: {controller.RegisterComposition(simpleC
 
 // Execute function through the mediator grain to test end-to-end functionality
 
-/*
 await controller.ExecuteFunction(new FunctionExecutionRequest
 {
     FunctionName = "AddThenIncrement",
@@ -180,7 +180,6 @@ await controller.ExecuteFunction(new FunctionExecutionRequest
     FunctionName = "BranchedComposition",
     Parameters = new object[] { 0L }
 });
-*/
 
 await controller.ExecuteFunction(new FunctionExecutionRequest
 {
@@ -191,6 +190,8 @@ await controller.ExecuteFunction(new FunctionExecutionRequest
 Console.WriteLine("Finished with dev tests");
 
 Thread.Sleep(4000);
+
+*/
 
 // Run transaction client (using new RedisKVS)
 var transactionClient = new TransactionClient();

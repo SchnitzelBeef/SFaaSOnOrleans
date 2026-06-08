@@ -17,9 +17,13 @@ public class MediatorGrain : Grain, IMediatorGrain
     private CancellationToken cancellationToken;
 
     private IProducer<Null, Event> producer;
+    private IProducer<Null, Inventory> inventoryProducer;
+    private IProducer<Null, Checkout> checkoutProducer;
+    private IProducer<Null, Outcome> outcomeProducer;
     private TopicPartition topicPartition;
-
-    private EventSerializer serializer = new EventSerializer();
+    private TopicPartition inventoryTopicPartition;
+    private TopicPartition checkoutTopicPartition;
+    private TopicPartition outcomeTopicPartition;
 
     private TaskScheduler scheduler;
     private IExecutorGrain executor;
@@ -51,7 +55,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         };
 
         this._consumer = new ConsumerBuilder<string, Event>(consumerConfig)
-            .SetValueDeserializer(new EventSerializer())
+            .SetValueDeserializer(new EventSerializer<Event>())
             .Build();
 
         var topicPartitionOffset =
@@ -70,12 +74,27 @@ public class MediatorGrain : Grain, IMediatorGrain
         };
 
         this.producer = new ProducerBuilder<Null, Event>(producerConfig)
-            .SetValueSerializer(new EventSerializer())
+            .SetValueSerializer(new EventSerializer<Event>())
+            .Build();
+
+        this.inventoryProducer = new ProducerBuilder<Null, Inventory>(producerConfig)
+            .SetValueSerializer(new EventSerializer<Inventory>())
+            .Build();
+
+        this.checkoutProducer = new ProducerBuilder<Null, Checkout>(producerConfig)
+            .SetValueSerializer(new EventSerializer<Checkout>())
+            .Build();
+
+        this.outcomeProducer = new ProducerBuilder<Null, Outcome>(producerConfig)
+            .SetValueSerializer(new EventSerializer<Outcome>())
             .Build();
 
         // Define topic partition, should be better partitioned
         // currently we just use one partition for simplicity
         this.topicPartition = new TopicPartition(this._topic, new Partition(this._partition));
+        this.inventoryTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
+        this.checkoutTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
+        this.outcomeTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
 
         return Task.CompletedTask;
     }
@@ -141,18 +160,6 @@ public class MediatorGrain : Grain, IMediatorGrain
         }
     }
 
-    private static object[] NormalizeParameters(object[] parameters)
-    {
-        return parameters.Select(p =>
-        {
-            if (p is Newtonsoft.Json.Linq.JArray jArray)
-                return jArray.ToObject<object[]>();
-            if (p is Newtonsoft.Json.Linq.JObject jObj)
-                return jObj;
-            return p;
-        }).ToArray();
-    }
-
     private async Task ProcessMessageAsync(string key, Event @event)
     {
         /* TODO Handle the Kafka message.
@@ -166,12 +173,11 @@ public class MediatorGrain : Grain, IMediatorGrain
 
         // ^^ I believe we are doing most of this in the code below, but we are not publishing to correct topic/partition
 
-
         var functionName = @event.functionName;
         var parameters = @event.parameters;
 
         Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}, Is Workflow = {@event.isWorkflow}");
-            
+
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
         Console.WriteLine($"Terminal result: {result}");
@@ -189,30 +195,56 @@ public class MediatorGrain : Grain, IMediatorGrain
                 return;
             }
 
+            // Push next step in the workflow
             var workflowResult = (Tuple<string, object>)result;
             var nextfunction = workflowResult.Item1;
-            var output = workflowResult.Item2;
+
+            // Ensure the output is an object[]
+            object[] output;
+            if (workflowResult.Item2 is object[])
+                output = (object[])workflowResult.Item2;
+            else
+                output = new object[] { workflowResult.Item2 };
+
             if (nextfunction != null)
             {
-                var nextEvent = new Event(nextfunction, new object[] { output }, true);
+                var nextEvent = new Event(nextfunction, output, true);
                 var _ = ProduceNextWorkflow(nextEvent);
             }
 
-            // TODO, handle Kafka here
-            if (output is Inventory)
+            // Forward events to kafka if applicable
+            foreach (var obj in output)
             {
-                var i = (Inventory)output;
-                Console.WriteLine($"Got Inventory request. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
-            }
-            else if (output is Checkout)
-            {
-                var c = (Checkout)output;
-                Console.WriteLine($"Got Checkout request. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
-            }
-            else if (output is Outcome)
-            {
-                var o = (Outcome)output;
-                Console.WriteLine($"Got Outcome request. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
+                if (obj is Inventory)
+                {
+                    var i = (Inventory)obj;
+                    Console.WriteLine($"Got Inventory request. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
+                    await inventoryProducer.ProduceAsync(this.inventoryTopicPartition, new Message<Null, Inventory>
+                    {
+                        Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Value = i
+                    });
+                }
+                else if (obj is Checkout)
+                {
+                    var c = (Checkout)obj;
+                    Console.WriteLine($"Got Checkout request. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
+                    await checkoutProducer.ProduceAsync(this.checkoutTopicPartition, new Message<Null, Checkout>
+                    {
+                        Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Value = c
+                    });
+                }
+                else if (obj is Outcome)
+                {
+                    var o = (Outcome)obj;
+                    Console.WriteLine($"Got Outcome request. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
+                    await outcomeProducer.ProduceAsync(this.outcomeTopicPartition, new Message<Null, Outcome>
+                    {
+                        Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Value = o
+                    });
+                }
             }
         }
 

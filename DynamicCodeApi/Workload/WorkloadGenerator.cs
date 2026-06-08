@@ -2,6 +2,7 @@
 using DynamicCodeApi;
 using Infra.EcommerceFunctions;
 using Infra.EcommerceStates;
+using Infra.EventSchema;
 using MathNet.Numerics.Distributions;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -103,8 +104,8 @@ internal class WorkloadGenerator
 
         this.controller.RegisterFunction(new CodeRegistrationRequest
         {
-            FunctionName = "GetUpdateAsync",
-            Code = AnalyticsFunctions.GetGetUpdateAsyncFunction()
+            FunctionName = "UpdateAsync",
+            Code = AnalyticsFunctions.GetUpdateAsyncFunction()
         });
 
         this.controller.RegisterFunction(new CodeRegistrationRequest
@@ -127,11 +128,33 @@ internal class WorkloadGenerator
 
 
         // ------ Workflows ------
-        // this.controller.RegisterComposition(new FunctionCompositionRequest
-        // {
-        //     FunctionName = "NewCheckoutOrder",
-        //     CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
-        // });
+        this.controller.RegisterComposition(new FunctionCompositionRequest
+        {
+            FunctionName = "NewCheckoutOrder",
+            Root = new CompositionAST
+            {
+                FunctionName = "ProcessCheckout",
+                ChildrenInOrder = new[] {
+                    // First branch is failure so it forwards to analytics
+                    new CompositionAST {
+                        FunctionName = "UpdateAsync",
+                        ChildrenInOrder = new CompositionAST[] { }
+                    },
+
+                    // Second branch is success so it forwards to inventory
+                    new CompositionAST {
+                        FunctionName = "ProcessInventoryRequest",
+                        ChildrenInOrder = new[] {
+                            // Which finally forwards to analytics
+                            new CompositionAST {
+                                FunctionName = "UpdateAsync",
+                                ChildrenInOrder = new CompositionAST[] { }
+                            }
+                        }
+                    }
+                },
+            },
+        });
     }
 
     // Unpacker function
@@ -265,20 +288,14 @@ internal class WorkloadGenerator
     {
         var customerID = customerDistribution.Sample();
         var productID = productDistribution.Sample();
+        var price = 1; // TODO either use the kvs or call the grain.
         var qty = customerQtyDistribution.Sample();
 
-
-        // throw new NotImplementedException();
-
-        /*
-        var price = await client.GetGrain<IProductActor>(productID).GetPrice();
-
-        IStreamProvider streamProvider = client.GetStreamProvider(Constants.DefaultStreamProvider);
-
-        IAsyncStream<Checkout> checkoutStream = streamProvider.GetStream<Checkout>( Constants.CheckoutNamespace, customerID.ToString() );
-        await checkoutStream.OnNextAsync(new Checkout(productID, price, qty));
-        return;
-        */
+        var res = await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        {
+            FunctionName = "NewCheckoutOrder",
+            Parameters = new object[] { customerID, new Checkout(productID, price, qty) }
+        });
     }
 
     public async Task<string> GetTopTen()

@@ -1,30 +1,21 @@
 ﻿using Confluent.Kafka;
-using Newtonsoft.Json;
-// Obs, switched to Newtonsoft serializer since MessagePacks had issues serializing classes such as 'Inventory'
+using MessagePack;
 
 namespace Infra.Kafka;
 
-public class EventSerializer : ISerializer<Event>, IDeserializer<Event>
+public class EventSerializer<TEvent> : ISerializer<TEvent>, IDeserializer<TEvent>
+    where TEvent : class
 {
-    private static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
+    public byte[] Serialize(TEvent e, SerializationContext _)
     {
-        TypeNameHandling = TypeNameHandling.All
-    };
-
-    public byte[] Serialize(Event e, SerializationContext _)
-    {
-        var json = JsonConvert.SerializeObject(e, Settings);
-        return System.Text.Encoding.UTF8.GetBytes(json);
+        var data = MessagePackSerializer.Serialize(e);
+        return data;
     }
 
-    public Event Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext _)
+    public TEvent Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext _)
     {
-        if (isNull)
-        {
-            Console.WriteLine("Data received is null!");
-            return null;
-        }
-        var json = System.Text.Encoding.UTF8.GetString(data);
-        return JsonConvert.DeserializeObject<Event>(json, Settings);
+        if (isNull) return null;
+        var e = MessagePackSerializer.Deserialize<TEvent>(data.ToArray());
+        return e;
     }
 }

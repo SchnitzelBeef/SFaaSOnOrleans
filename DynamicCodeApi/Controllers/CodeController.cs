@@ -177,7 +177,7 @@ namespace Controller
             {
                 FunctionName = functionName,
                 Code = $@"
-                    System.Func<object[], object> __inner__{functionName}__ = args => {{ {code} }};
+                    System.Func<object[], object> __inner__{functionName}__ = args => {{ {code}; return null; }};
                     var result = __inner__{functionName}__(args);
                     
                     string[] childMap = new string[] {{{childNames}}};
