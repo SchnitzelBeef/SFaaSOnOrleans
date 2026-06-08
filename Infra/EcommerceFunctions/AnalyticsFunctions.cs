@@ -31,7 +31,6 @@ namespace Infra.EcommerceFunctions
                     reference[customerId] = previous + total;
                 }}
 
-                // ** Currently not implemented
                 // Increment the debug counter for end-to-end latency metrics.
                 // var previousCount = this.state.DebugQuery.GetValueOrDefault(outcome.customerId, 0);
                 // this.state.DebugQuery[outcome.customerId] = previousCount + 1;
@@ -55,21 +54,18 @@ namespace Infra.EcommerceFunctions
             return code;
         }
 
-        // OBS, not implemented currently
         public static string GetCustomerOutcomeProcessedCountFunction()
         {
-            return $@"return ""Debug Query not implemented, used in this call to CustomerOutcomeProcessedCount"";";
-
             // We only have one "actor" for analytics, so we don't accept parameter currently
-            // var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
-            // var code = $@"
-            //         {args_code}
-            //         var key = ""Analytics-0"";
-            //         return kvs.Get<AnalyticsState>(key).Query.Sum();
-            // ";
-            // return code;
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
 
-            // return this.state.DebugQuery.GetValueOrDefault(customerId, 0);
+            var code = $@"
+                {args_code}
+                var key = ""Analytics-0"";
+                return kvs.Get<AnalyticsState>(key).DebugQuery.GetValueOrDefault(customerId, 0);
+            ";
+
+            return code;
         }
 
         public static string GetGetSumOfAllBalanceFunction()

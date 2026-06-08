@@ -23,21 +23,21 @@ namespace Infra.EcommerceFunctions
                 var balance = kvs.Get<CustomerState>(key).Balance;
                 if (total > balance)
                 {{
-                    // Get outcome log and send insufficient balance message to analytics actor            
-                    // var outcome = new Outcome(this.id, productId, price * quantity, Status.INSUFFICIENT_BALANCE);
-                    // await outcomeProducer.Append(this.id, outcome);
-                    // _ = outcomeProducer.Append(this.id, outcome);
-                    // OBS
-                    // return ""Insufficient balance on customer id: "" + id;
+                    // Get outcome log and send insufficient balance message to analytics actor      
+                    var outcomeEvent = new Outcome(id, productId, total, Status.INSUFFICIENT_BALANCE);
+                    return new object[] {{ id, outcomeEvent }};
                 }}
 
                 // Reserve balance
                 // Not the prettiest way to update the state
                 kvs.Put(key, new CustomerState{{Balance = balance - total}});
 
-                // I cannot get it to return the Inventory type
-                // var inventoryEvent = new Inventory(id, price, quantity);
-                return new object[] {{ productId, id, price, quantity }};
+                var inventoryEvent = new Inventory(id, price, quantity);
+                return new object[] {{ productId, inventoryEvent }};
+
+                // If returning the 'Inventory' type does not work (due to serializer):
+                // I believe it works with inventory, but this is a fallback method
+                // return new object[] {{ productId, id, price, quantity }};
             ";
 
             return code;

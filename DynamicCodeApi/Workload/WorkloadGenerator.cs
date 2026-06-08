@@ -2,6 +2,7 @@
 using DynamicCodeApi;
 using Infra.EcommerceFunctions;
 using Infra.EcommerceStates;
+using Infra.EventSchema;
 using MathNet.Numerics.Distributions;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -160,7 +161,10 @@ internal class WorkloadGenerator
             ObejctRegistrationRequest customerState = new ObejctRegistrationRequest
             {
                 Key = $"Customer-{i}",
-                Object = new CustomerState { Balance = customerBalanceDistribution.Sample() }
+                Object = new CustomerState
+                {
+                    Balance = customerBalanceDistribution.Sample()
+                }
             };
             this.controller.RegisterKeyObject(customerState);
         }
@@ -173,7 +177,11 @@ internal class WorkloadGenerator
             ObejctRegistrationRequest productState = new ObejctRegistrationRequest
             {
                 Key = $"Product-{i}",
-                Object = new ProductState { Price = productPriceDistribution.Sample(), Quantity = productQtyDistribution.Sample() }
+                Object = new ProductState
+                {
+                    Price = productPriceDistribution.Sample(),
+                    Quantity = productQtyDistribution.Sample()
+                }
             };
             this.controller.RegisterKeyObject(productState);
         }
@@ -185,12 +193,17 @@ internal class WorkloadGenerator
         ObejctRegistrationRequest analyticsState = new ObejctRegistrationRequest
         {
             Key = $"Analytics-0",
-            Object = new AnalyticsState { Query = new Dictionary<long, double>() }
+            Object = new AnalyticsState
+            {
+                Query = new Dictionary<long, double>(),
+                DebugQuery = new Dictionary<long, int>()
+            }
         };
         this.controller.RegisterKeyObject(analyticsState);
 
 
-        // EXAMPLES FOR TESTS
+        // EXAMPLES FOR TESTING
+
         // Example of processing checkout
         // await this.controller.ExecuteFunction(new FunctionExecutionRequest
         // {
@@ -198,16 +211,19 @@ internal class WorkloadGenerator
         //     Parameters = new object[] {0L, new Checkout(0, 10, 2)}
         // });
 
-        // Thread.Sleep(3000);
-
-        // // Example of processing inventory
+        // Example of processing inventory
         // await this.controller.ExecuteFunction(new FunctionExecutionRequest
         // {
         //     FunctionName = "ProcessInventoryRequest",
         //     Parameters = new object[] {0L, new Inventory(1, 1, 1)}
         // });
 
-        // Thread.Sleep(3000);
+        // Example of processing outcome
+        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        // {
+        //     FunctionName = "UpdateAsync",
+        //     Parameters = new object[] {new Outcome(0, 0, 10, Status.OK)}
+        // });
 
         // Example of processing NewCheckoutOrder
         // await this.controller.ExecuteFunction(new FunctionExecutionRequest

@@ -17,6 +17,7 @@ namespace Infra.EcommerceFunctions
             var code = $@"
                 {args_code}
                 var key = ""Customer-"" + id;
+                var request_customerId = (long)inventory.customerId;
                 var request_price = (double)inventory.price;
                 var request_quantity = (int)inventory.quantity;
 
@@ -36,7 +37,8 @@ namespace Infra.EcommerceFunctions
                 }}
 
                 // Get outcome stream and send OK balance message to analytics actor   
-                return ""Quantity withdrawn on product id: "" + id;
+                var outcomeEvent = new Outcome(request_customerId, id, request_price * request_quantity, Status.OK);
+                return new object[] {{ request_customerId, outcomeEvent }};
             ";
 
             return code;

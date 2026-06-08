@@ -170,7 +170,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         var parameters = @event.parameters;
 
         Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}, Is Workflow = {@event.isWorkflow}");
-
+            
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
         Console.WriteLine($"Terminal result: {result}");
