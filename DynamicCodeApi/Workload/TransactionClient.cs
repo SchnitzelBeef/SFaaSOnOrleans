@@ -40,7 +40,7 @@ internal class TransactionClient
         await workload.InitAllActors();
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
-        return; // OBS
+        
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();
