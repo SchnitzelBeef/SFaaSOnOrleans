@@ -5,7 +5,8 @@ using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
 
-var sharedClient = OrleansClientManager.GetClient().Result;
+var sharedClientManager = new OrleansClientManager();
+var sharedClient = await sharedClientManager.StartClient();
 
 ThreadStart work = () =>
 {
@@ -95,6 +96,6 @@ await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGro
 // Thread.Sleep(4000);
 
 // Run transaction client (using new RedisKVS)
-var transactionClient = new TransactionClient();
+var transactionClient = new TransactionClient(sharedClient);
 await transactionClient.RunClient();
 return;

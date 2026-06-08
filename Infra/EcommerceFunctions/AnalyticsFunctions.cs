@@ -56,13 +56,15 @@ namespace Infra.EcommerceFunctions
 
         public static string GetCustomerOutcomeProcessedCountFunction()
         {
-            // We only have one "actor" for analytics, so we don't accept parameter currently
-            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> {});
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
+            {
+                (typeof(long), "id"),
+            });
 
             var code = $@"
                 {args_code}
                 var key = ""Analytics-0"";
-                return kvs.Get<AnalyticsState>(key).DebugQuery.GetValueOrDefault(customerId, 0);
+                return kvs.Get<AnalyticsState>(key).DebugQuery.GetValueOrDefault(id, 0);
             ";
 
             return code;

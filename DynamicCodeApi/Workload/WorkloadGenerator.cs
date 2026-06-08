@@ -13,6 +13,7 @@ internal class WorkloadGenerator
 {
     private readonly int numCustomerActor;
     private readonly int numProductActor;
+    private OrleansClientManager clientManager;
     private IClusterClient client;
     private bool isClientConnected = false;
 
@@ -22,6 +23,7 @@ internal class WorkloadGenerator
     private IDiscreteDistribution productPriceDistribution;   // the price of items
     private IDiscreteDistribution customerBalanceDistribution;// the customer balance
     private IDiscreteDistribution customerQtyDistribution;    // max qty a customer can buy for a product
+    private IDiscreteDistribution isCheckoutElseTop10;        // checkout = 0, top10 = 1
 
     // Used to issue requests to RedisKSV
     // Maybe a bit overkill since we can call the functions directly without HTTP wrappers
@@ -40,6 +42,7 @@ internal class WorkloadGenerator
         productPriceDistribution = new DiscreteUniform(1, 1000, new Random());
         customerBalanceDistribution = new DiscreteUniform(1, 10000, new Random());
         customerQtyDistribution = new DiscreteUniform(1, 10, new Random());
+        isCheckoutElseTop10 = new DiscreteUniform(0, 1, new Random());
 
         // wait until the client is created and connected
         InitiateClient();
@@ -48,8 +51,14 @@ internal class WorkloadGenerator
 
     private async void InitiateClient()
     {
-        this.client = await OrleansClientManager.GetClient();
+        this.clientManager = new OrleansClientManager();
+        this.client = await this.clientManager.StartClient();
         isClientConnected = true;
+    }
+
+    public async Task StopClient()
+    {
+        await this.clientManager.StopClient();
     }
 
     public async Task InitAllActorFunctions()
@@ -255,53 +264,122 @@ internal class WorkloadGenerator
         var inventory = new List<long>();
         foreach (var task in tasks)
         {
-            var res = FunctionExecutionUnpacker<int>(task.Result, 0); // obs standard value for bad result
+            var res = FunctionExecutionUnpacker<int>(task.Result, 0); // obs standard value for bad result, should probably change
             inventory.Add(res);
             if (res < 0) hasEverGotNegativeInventory = true;
         }
         return new Tuple<List<long>, bool>(inventory, hasEverGotNegativeInventory);
     }
 
-    // OBS: Should be implemented. Waiting for composition to work
-    public async Task NewCheckOutOrder()
+    public async Task<Tuple<List<double>, bool>> GetAllBalance()
     {
-        var customerID = customerDistribution.Sample();
-        var productID = productDistribution.Sample();
+        var tasks = new List<Task<IActionResult>>();
+        for (long i = 0; i < numCustomerActor; i++)
+        {
+            tasks.Add(
+                this.controller.TestFunction(new FunctionExecutionRequest
+                {
+                    FunctionName = "GetBalance",
+                    Parameters = new object[] { i }
+                }
+                )
+            );
+        }
+        await Task.WhenAll(tasks);
+
+        var hasEverGotNegativeBalance = false;
+        var balances = new List<double>();
+        foreach (var task in tasks)
+        {
+            // obs standard value for bad result, should probably change
+            var res = FunctionExecutionUnpacker<double>(task.Result, 0); 
+            balances.Add(res);
+            if (res < 0) hasEverGotNegativeBalance = true;
+        }
+        return new Tuple<List<double>, bool>(balances, hasEverGotNegativeBalance);
+    }
+
+    public async Task NewOrder()
+    {
+        var isCheckout = isCheckoutElseTop10.Sample() == 0;
+        if (isCheckout)
+        {
+            var customerId = customerDistribution.Sample();
+            this.NewCheckOutOrder(customerId);
+        }
+        else
+        {
+            var wrapped_res = await this.controller.TestFunction(new FunctionExecutionRequest
+                {
+                    FunctionName = "Top10",
+                    Parameters = new object[] { }
+                }
+            );
+
+            // OBS, no handling if null is returned
+            var _ = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(wrapped_res, null);
+        }
+    }
+
+
+    public async Task NewCheckOutOrder(long customerID)
+    {
+        long productID = productDistribution.Sample();
         var qty = customerQtyDistribution.Sample();
 
+        var wrapped_price = await this.controller.TestFunction(new FunctionExecutionRequest
+        {
+            FunctionName = "GetPrice",
+            Parameters = new object[] { productID }
+        });
 
-        // throw new NotImplementedException();
 
-        /*
-        var price = await client.GetGrain<IProductActor>(productID).GetPrice();
+        // OBS, use of -1 for "bad" value
+        // Should probably do error handling, but error should not be able to occur (at least, with very high prob. due to HTTP) in local test-setup
+        var price = FunctionExecutionUnpacker<double>(wrapped_price, -1); 
 
-        IStreamProvider streamProvider = client.GetStreamProvider(Constants.DefaultStreamProvider);
+        var checkout = new Checkout(productID, price, qty);
 
-        IAsyncStream<Checkout> checkoutStream = streamProvider.GetStream<Checkout>( Constants.CheckoutNamespace, customerID.ToString() );
-        await checkoutStream.OnNextAsync(new Checkout(productID, price, qty));
-        return;
-        */
+        // Uncomment when 'NewCheckoutOrder' workflow is implemented
+        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        // {
+        //     FunctionName = "NewCheckoutOrder",
+        //     Parameters = new object[] { customerID, checkout }
+        // });
+    }
+
+    public async Task<int> GetCustomerProcessedCount(long customerId)
+    {
+        var wrapped_res = await this.controller.TestFunction(new FunctionExecutionRequest
+            {
+                FunctionName = "CustomerOutcomeProcessedCount",
+                Parameters = new object[] { customerId }
+            }
+        );
+
+        // OBS, no handling if -1 is returned
+        return FunctionExecutionUnpacker<int>(wrapped_res, -1);
     }
 
     public async Task<string> GetTopTen()
     {
         
-        var res = await this.controller.TestFunction(new FunctionExecutionRequest
+        var wrapped_res = await this.controller.TestFunction(new FunctionExecutionRequest
             {
                 FunctionName = "Top10",
                 Parameters = new object[] { }
             }
         );
 
-        var unpacked_res = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(res, null);
+        var res = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(wrapped_res, null);
 
-        if (unpacked_res == null)
+        if (res == null)
         {
             return "Function execution error in controller when fetching Top10 from Analytics-0";
         }
 
         StringBuilder sb = new StringBuilder();
-        foreach (KeyValuePair<long, double> kv in unpacked_res)
+        foreach (KeyValuePair<long, double> kv in res)
         {
             sb.Append(kv.Key);
             sb.Append(" : ");

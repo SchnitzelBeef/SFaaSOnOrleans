@@ -48,10 +48,10 @@ namespace Controller
         private readonly IKeyValueStore kvs;
         private readonly IClusterClient client;
 
-        public CodeController(IKeyValueStore kvs)
+        public CodeController(IKeyValueStore kvs, IClusterClient client)
         {
             this.kvs = kvs;
-            this.client = OrleansClientManager.GetClient().Result;
+            this.client = client;
         }
 
         // Register function

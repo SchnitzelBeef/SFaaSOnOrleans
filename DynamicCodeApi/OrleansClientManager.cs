@@ -1,21 +1,25 @@
 ﻿using Infra;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Orleans.Configuration;
 using Orleans.Serialization;
 
 namespace DynamicCodeApi;
 
-public static class OrleansClientManager
+public class OrleansClientManager
 {
-    public static async Task<IClusterClient> GetClient()
-    {
-        var client = new HostBuilder()
+
+    private IHost host;
+
+    public OrleansClientManager()
+        {
+        this.host = new HostBuilder()
             .UseOrleansClient(clientBuilder =>
             {
                 clientBuilder.UseLocalhostClustering();
                 clientBuilder.Configure<ClusterOptions>(options =>
                 {
                     options.ClusterId = Constants.ClusterId;
-                    options.ServiceId = Constants.ServiceId;
+                    options.ServiceId = Constants.ServiceId;    
                 });
             })
             //.ConfigureLogging(loggingBuilder => loggingBuilder.AddConsole())
@@ -25,8 +29,20 @@ public static class OrleansClientManager
             }))
             .Build();
 
-        await client.StartAsync();
+        // await client.StartAsync();
 
-        return client.Services.GetService<IClusterClient>();
+        // return client.Services.GetService<IClusterClient>();
     }
+    
+
+    public async Task StopClient()
+    {
+        await this.host.StopAsync();
+    }
+
+    public async Task<IClusterClient> StartClient()
+    {
+        await this.host.StartAsync();
+        return this.host.Services.GetService<IClusterClient>();
+    }   
 }
