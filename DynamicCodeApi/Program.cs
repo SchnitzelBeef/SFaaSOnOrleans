@@ -1,5 +1,5 @@
+using Controller;
 using DynamicCodeApi;
-using DynamicCodeApi.Workload;
 using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
@@ -47,7 +47,6 @@ await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGro
 
 // Test-setup, should not be part of final handin
 // Just used to test that we can submit functions to the Redis KVS and execute them through the mediator grain
-/*
 Console.WriteLine("Initializing test...");
 
 var redisKVS = new RedisKVS(null); // Null for logger
@@ -68,27 +67,33 @@ var bar = new CodeRegistrationRequest
 var composedFunc = new FunctionCompositionRequest
 {
     FunctionName = "AddThenIncrement",
-    CompositionFirstFunctionName = "AddNumbers",
-    CompositionSecondFunctionName = "Increment"
+    CompositionFunctionNames = new string[] { "AddNumbers", "Increment", "Increment" },
+};
+
+// This does not work. Should we allow composing of compositions?
+var composedFunc2 = new FunctionCompositionRequest
+{
+    FunctionName = "AddThenIncrementAgain",
+    CompositionFunctionNames = new string[] { "AddThenIncrement", "Increment" },
 };
 
 Console.WriteLine($"Function registered: {controller.RegisterFunction(foo)}");
 Console.WriteLine($"Function registered: {controller.RegisterFunction(bar)}");
 Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc)}");
+// Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc2)}");
 
 // Execute function through the mediator grain to test end-to-end functionality
-
-
 await controller.ExecuteFunction(new FunctionExecutionRequest
 {
     FunctionName = "AddThenIncrement",
     Parameters = new object[] { 10L, 20L }
 });
 
+Console.WriteLine("Finished with dev tests");
+
 Thread.Sleep(2000);
-*/
 
 // Run transaction client (using new RedisKVS)
-var transactionClient = new TransactionClient();
-await transactionClient.RunClient();
+//var transactionClient = new TransactionClient();
+//await transactionClient.RunClient();
 return;

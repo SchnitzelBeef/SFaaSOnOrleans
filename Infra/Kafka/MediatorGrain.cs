@@ -1,5 +1,4 @@
 ﻿using Confluent.Kafka;
-using Infra.EventSchema;
 using Infra.Service;
 using Orleans.Concurrency;
 
@@ -80,8 +79,16 @@ public class MediatorGrain : Grain, IMediatorGrain
         return Task.CompletedTask;
     }
 
-    private async Task<bool> StartEventWorkflow(Event @event)
+
+    public async Task<bool> StartWorkflow(string functionName, object[] parameters)
     {
+        var @event = new Event(functionName, parameters, true);
+        return await ProduceNextWorkflow(@event);
+    }
+
+    private async Task<bool> ProduceNextWorkflow(Event @event)
+    {
+        // Assemble function name and parameters into an event object
         try
         {
             Console.WriteLine($"EVENT: {@event.functionName} : {@event.parameters}");
@@ -102,16 +109,6 @@ public class MediatorGrain : Grain, IMediatorGrain
             return false; // or throw a plain Exception that Orleans can serialize
         }
     }
-
-
-    // Turned StartWorkflow into public wrapper method 
-    public async Task<bool> StartWorkflow(string functionName, object[] parameters)
-    {
-        // Assemble function name and parameters into an event object
-        var @event = new Event(functionName, parameters);
-        return await StartEventWorkflow(@event);
-    }
-
 
     private async Task StartConsuming(CancellationToken cancellationToken)
     {
@@ -172,32 +169,33 @@ public class MediatorGrain : Grain, IMediatorGrain
         var functionName = @event.functionName;
         var parameters = @event.parameters;
 
-        // Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}");
+        Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}, Is Workflow = {@event.isWorkflow}");
 
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
+        Console.WriteLine($"Terminal result: {result}");
 
-        // Check if result is part of a workflow, in which case an Event type is returned
-        if (result is Event @newEvent)
+        if (@event.isWorkflow)
         {
-            if (newEvent.functionName == "ProcessInventoryRequest")
+            if (result is null)
             {
-
-                // Super not cool way to do this
-                // This is because I cannot figure out how to return "Inventory" directly
-                var p = (object[])NormalizeParameters(newEvent.parameters)[0];
-                var productId = p[0]; // Convert.ToInt64(newEvent.parameters[0]);
-                var customerId = (long)p[1];
-                var price = (double)p[2]; // Convert.ToDouble(newEvent.parameters[1]);
-                var quantity = Convert.ToInt32(p[3]); // Convert.ToInt32(newEvent.parameters[2]);
-                newEvent.parameters = new object[] { productId, new Inventory(customerId, price, quantity) };
+                Console.WriteLine($"Workflow result is null for function {functionName}");
+                return;
             }
-            Console.WriteLine($"Intermediate execution result: {@newEvent.functionName}, {@newEvent.parameters}");
-            await this.StartEventWorkflow(@newEvent);
-        }
-        else
-        {
-            Console.WriteLine($"Terminal result: {result}");
+            if (result is not Tuple<string, object>)
+            {
+                Console.WriteLine($"Workflow result is not valid for function {functionName}");
+                return;
+            }
+
+            var workflowResult = (Tuple<string, object>)result;
+            var nextfunction = workflowResult.Item1;
+            var nextParams = workflowResult.Item2;
+            if (nextfunction != null)
+            {
+                var nextEvent = new Event(nextfunction, new object[] { nextParams }, true);
+                var _ = ProduceNextWorkflow(nextEvent);
+            }
         }
 
         return;

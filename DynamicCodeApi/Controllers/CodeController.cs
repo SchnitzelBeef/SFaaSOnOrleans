@@ -39,8 +39,7 @@ namespace Controller
     public class FunctionCompositionRequest
     {
         public string FunctionName { get; set; }
-        public string CompositionFirstFunctionName { get; set; }
-        public string CompositionSecondFunctionName { get; set; }
+        public string[] CompositionFunctionNames { get; set; }
     }
 
     [ApiController]
@@ -65,7 +64,6 @@ namespace Controller
             if (this.kvs.PutString(request.FunctionName, request.Code))
                 Console.WriteLine($"Function '{request.FunctionName}' registered in RedisKVS := {request.Code}");
             return Ok($"Function '{request.FunctionName}' registered successfully.");
-            return BadRequest($"Error registering function: {request.FunctionName}");
         }
 
         // Register key-value, could also use 'RegisterFunction' instead
@@ -98,38 +96,53 @@ namespace Controller
         [HttpPost("compose")]
         public IActionResult RegisterComposition([FromBody] FunctionCompositionRequest request)
         {
-            if (string.IsNullOrWhiteSpace(request.FunctionName) ||
-                string.IsNullOrWhiteSpace(request.CompositionFirstFunctionName) ||
-                string.IsNullOrWhiteSpace(request.CompositionSecondFunctionName))
-                return BadRequest("All function names must be provided.");
+            if (string.IsNullOrWhiteSpace(request.FunctionName))
+                return BadRequest("Function name must be provided.");
 
-            if (this.kvs.GetString(request.CompositionFirstFunctionName) == null)
+            foreach (var name in request.CompositionFunctionNames)
             {
-                return NotFound($"Function '{request.CompositionFirstFunctionName}' not found.");
+                if (string.IsNullOrWhiteSpace(name))
+                    return BadRequest("Function composition name must be provided.");
+
+                if (this.kvs.GetString(name) == null)
+                    return NotFound($"Function '{name}' not found.");
             }
 
-            if (this.kvs.GetString(request.CompositionSecondFunctionName) == null)
+            var namePrefix = request.FunctionName + "Workflow";
+            for (var i = 0; i < request.CompositionFunctionNames.Length; i++)
             {
-                return NotFound($"Function '{request.CompositionSecondFunctionName}' not found.");
+                var name = request.CompositionFunctionNames[i];
+                var code = this.kvs.GetString(name);
+
+                // First function is named after the workflow function
+                var functionName = request.FunctionName;
+                if (i != 0)
+                {
+                    functionName = $"{namePrefix}{i}{name}";
+                }
+
+                // Last function is null
+                var nextNameInCode = "null";
+                if (i != request.CompositionFunctionNames.Length - 1)
+                {
+                    var nextName = request.CompositionFunctionNames[i + 1];
+                    nextNameInCode = $"\"{namePrefix}{i + 1}{nextName}\"";
+                }
+
+                // Every other function is named based uniquely on workflow + index + name
+
+                // Create a new intermediate function for this workflow step
+                // It returns both its result and the name of the next function
+                RegisterFunction(new CodeRegistrationRequest
+                {
+                    FunctionName = functionName,
+                    Code = $@"
+                        System.Func<object[], object> __inner__ = args => {{ {code} }};
+                        return new System.Tuple<string, object>({nextNameInCode}, __inner__(args));",
+                });
             }
 
-            string firstCode = this.kvs.GetString(request.CompositionFirstFunctionName);
-            string secondCode = this.kvs.GetString(request.CompositionSecondFunctionName);
-
-            // Can most likely be optimized to call the function of the first function instead of stealing the code
-            string composedCode = $@"
-            System.Func<object[], object> first = args => {{ 
-                {firstCode}
-            }};
-            var result = new object[] {{ first(args) }};
-            return (object)new Infra.Kafka.Event(""{request.CompositionSecondFunctionName}"", result);";
-
-            if (this.kvs.PutString(request.FunctionName, composedCode))
-            {
-                Console.WriteLine($"Composed function '{request.FunctionName}' registered in RedisKVS := {composedCode}");
-                return Ok($"Function '{request.FunctionName}' registered successfully.");
-            }
-            return BadRequest($"Error registering function: {request.FunctionName}");
+            return Ok($"Succesfully created workflow {request.FunctionName}");
         }
 
         // Execute function
@@ -187,7 +200,6 @@ namespace Controller
         private Task<object> Dispatch(string functionName, object[] parameters)
         {
             // Pick a well-defind MediatorGrain and call StartWorkflow
-
             var mediatorGrain = this.client.GetGrain<IMediatorGrain>("mediator"); //obs
             mediatorGrain.StartWorkflow(functionName, parameters);
 

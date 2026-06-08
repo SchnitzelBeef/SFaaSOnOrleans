@@ -1,35 +1,34 @@
-﻿using System.Text;
-using Controller;
+﻿using Controller;
 using DynamicCodeApi;
-using MathNet.Numerics.Distributions;
-using Infra.EcommerceStates;
 using Infra.EcommerceFunctions;
-using Infra.EventSchema;
+using Infra.EcommerceStates;
+using MathNet.Numerics.Distributions;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
 
 namespace Workload;
 
 internal class WorkloadGenerator
 {
-    readonly int numCustomerActor;
-    readonly int numProductActor;
-    IClusterClient client;
-    bool isClientConnected = false;
-      
-    IDiscreteDistribution customerDistribution;       // which customer send the request
-    IDiscreteDistribution productDistribution;        // which product to buy
-    IDiscreteDistribution productQtyDistribution;     // the number of items available for each product
-    IDiscreteDistribution productPriceDistribution;   // the price of items
-    IDiscreteDistribution customerBalanceDistribution;// the customer balance
-    IDiscreteDistribution customerQtyDistribution;    // max qty a customer can buy for a product
+    private readonly int numCustomerActor;
+    private readonly int numProductActor;
+    private IClusterClient client;
+    private bool isClientConnected = false;
+
+    private IDiscreteDistribution customerDistribution;       // which customer send the request
+    private IDiscreteDistribution productDistribution;        // which product to buy
+    private IDiscreteDistribution productQtyDistribution;     // the number of items available for each product
+    private IDiscreteDistribution productPriceDistribution;   // the price of items
+    private IDiscreteDistribution customerBalanceDistribution;// the customer balance
+    private IDiscreteDistribution customerQtyDistribution;    // max qty a customer can buy for a product
 
     // Used to issue requests to RedisKSV
     // Maybe a bit overkill since we can call the functions directly without HTTP wrappers
-    CodeController controller;
+    private CodeController controller;
 
     public WorkloadGenerator(int numCustomerActor, int numProductActor, CodeController controller)
     {
-         
+
         this.numCustomerActor = numCustomerActor;
         this.numProductActor = numProductActor;
         this.controller = controller;
@@ -46,7 +45,7 @@ internal class WorkloadGenerator
         while (isClientConnected == false) Thread.Sleep(TimeSpan.FromMilliseconds(100));
     }
 
-    async void InitiateClient()
+    private async void InitiateClient()
     {
         this.client = await OrleansClientManager.GetClient();
         isClientConnected = true;
@@ -78,7 +77,7 @@ internal class WorkloadGenerator
             FunctionName = "ProcessInventoryRequest",
             Code = ProductFunctions.GetProcessInventoryRequestFunction()
         });
-        
+
         // Not really necessary, since we can get the price directly in the RedisKVS
         this.controller.RegisterFunction(new CodeRegistrationRequest
         {
@@ -102,8 +101,7 @@ internal class WorkloadGenerator
         this.controller.RegisterComposition(new FunctionCompositionRequest
         {
             FunctionName = "NewCheckoutOrder",
-            CompositionFirstFunctionName = "ProcessCheckout",
-            CompositionSecondFunctionName = "ProcessInventoryRequest"
+            CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
         });
 
     }
@@ -119,8 +117,8 @@ internal class WorkloadGenerator
         {
             Console.WriteLine($"Error: God bad reuslt '{bad}' when unpacking HTTP function execution result");
         }
-        return bad_result; 
-    }  
+        return bad_result;
+    }
 
     public async Task InitAllActors()
     {
@@ -133,7 +131,7 @@ internal class WorkloadGenerator
             ObejctRegistrationRequest customerState = new ObejctRegistrationRequest
             {
                 Key = $"Customer-{i}",
-                Object = new CustomerState{Balance = customerBalanceDistribution.Sample()}
+                Object = new CustomerState { Balance = customerBalanceDistribution.Sample() }
             };
             this.controller.RegisterKeyObject(customerState);
         }
@@ -146,7 +144,7 @@ internal class WorkloadGenerator
             ObejctRegistrationRequest productState = new ObejctRegistrationRequest
             {
                 Key = $"Product-{i}",
-                Object = new ProductState{Price = productPriceDistribution.Sample(), Quantity = productQtyDistribution.Sample()}
+                Object = new ProductState { Price = productPriceDistribution.Sample(), Quantity = productQtyDistribution.Sample() }
             };
             this.controller.RegisterKeyObject(productState);
         }
@@ -158,11 +156,11 @@ internal class WorkloadGenerator
         ObejctRegistrationRequest analyticsState = new ObejctRegistrationRequest
         {
             Key = $"Analytics-0",
-            Object = new AnalyticsState{Query = new Dictionary<long, double>()}
+            Object = new AnalyticsState { Query = new Dictionary<long, double>() }
         };
         this.controller.RegisterKeyObject(analyticsState);
 
-        
+
         // EXAMPLES FOR TESTS
         // Example of processing checkout
         // await this.controller.ExecuteFunction(new FunctionExecutionRequest
@@ -179,9 +177,9 @@ internal class WorkloadGenerator
         //     FunctionName = "ProcessInventoryRequest",
         //     Parameters = new object[] {0L, new Inventory(1, 1, 1)}
         // });
-        
+
         // Thread.Sleep(3000);
-        
+
         // Example of processing NewCheckoutOrder
         // await this.controller.ExecuteFunction(new FunctionExecutionRequest
         // {
@@ -199,10 +197,10 @@ internal class WorkloadGenerator
             // Can use when we do not want to initiate workflow, where the result is harder to get directly
             tasks.Add(
                 this.controller.TestFunction(new FunctionExecutionRequest
-                    {
-                        FunctionName = "GetInventory",
-                        Parameters = new object[] {i}
-                    }
+                {
+                    FunctionName = "GetInventory",
+                    Parameters = new object[] { i }
+                }
                 )
             );
         }
@@ -211,9 +209,9 @@ internal class WorkloadGenerator
         var hasEverGotNegativeInventory = false;
         var inventory = new List<long>();
         foreach (var task in tasks)
-        {   
+        {
             var res = FunctionExecutionUnpacker<int>(task.Result, 0); // obs standard value for bad result
-            inventory.Add(res); 
+            inventory.Add(res);
             if (res < 0) hasEverGotNegativeInventory = true;
         }
         return new Tuple<List<long>, bool>(inventory, hasEverGotNegativeInventory);
@@ -224,8 +222,8 @@ internal class WorkloadGenerator
         var customerID = customerDistribution.Sample();
         var productID = productDistribution.Sample();
         var qty = customerQtyDistribution.Sample();
-     
-     
+
+
         throw new NotImplementedException();
         /*
         var price = await client.GetGrain<IProductActor>(productID).GetPrice();
@@ -243,9 +241,9 @@ internal class WorkloadGenerator
         List<KeyValuePair<long, double>> res = null;
         // res = await client.GetGrain<IAnalyticsActor>(0).Top10();
         StringBuilder sb = new StringBuilder();
-        foreach(KeyValuePair<long, double> kv in res)
+        foreach (KeyValuePair<long, double> kv in res)
         {
-            sb.Append (kv.Key);
+            sb.Append(kv.Key);
             sb.Append(" : ");
             sb.Append(kv.Value);
             sb.AppendLine();

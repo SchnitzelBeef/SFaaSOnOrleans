@@ -8,9 +8,11 @@ public class Event
 {
     public string functionName { get; set; }
     public object[] parameters { get; set; }
-    public Event(string functionName, object[] parameters)
+    public bool isWorkflow { get; set; }
+    public Event(string functionName, object[] parameters, bool isWorkflow = false)
     {
         this.functionName = functionName;
         this.parameters = parameters;
+        this.isWorkflow = isWorkflow;
     }
 }
