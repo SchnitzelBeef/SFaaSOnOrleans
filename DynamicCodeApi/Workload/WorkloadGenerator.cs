@@ -138,7 +138,9 @@ internal class WorkloadGenerator
                     // First branch is failure so it forwards to analytics
                     new CompositionAST {
                         FunctionName = "UpdateAsync",
-                        ChildrenInOrder = new CompositionAST[] { }
+                        ChildrenInOrder = new CompositionAST[] {
+                            null // leaf node
+                        }
                     },
 
                     // Second branch is success so it forwards to inventory
@@ -148,7 +150,9 @@ internal class WorkloadGenerator
                             // Which finally forwards to analytics
                             new CompositionAST {
                                 FunctionName = "UpdateAsync",
-                                ChildrenInOrder = new CompositionAST[] { }
+                                ChildrenInOrder = new CompositionAST[] {
+                                    null // leaf node
+                                }
                             }
                         }
                     }
@@ -294,7 +298,7 @@ internal class WorkloadGenerator
         var res = await this.controller.ExecuteFunction(new FunctionExecutionRequest
         {
             FunctionName = "NewCheckoutOrder",
-            Parameters = new object[] { customerID, new Checkout(productID, price, qty) }
+            Parameters = new object[] { (long)customerID, new Checkout(productID, price, qty) }
         });
     }
 

@@ -6,6 +6,9 @@ namespace Infra.Kafka;
 public class EventSerializer<TEvent> : ISerializer<TEvent>, IDeserializer<TEvent>
     where TEvent : class
 {
+    private readonly MessagePackSerializerOptions options = MessagePackSerializerOptions.Standard
+        .WithResolver(MessagePack.Resolvers.TypelessContractlessStandardResolver.Instance);
+
     public byte[] Serialize(TEvent e, SerializationContext _)
     {
         var data = MessagePackSerializer.Serialize(e);
@@ -15,7 +18,7 @@ public class EventSerializer<TEvent> : ISerializer<TEvent>, IDeserializer<TEvent
     public TEvent Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext _)
     {
         if (isNull) return null;
-        var e = MessagePackSerializer.Deserialize<TEvent>(data.ToArray());
+        var e = MessagePackSerializer.Deserialize<TEvent>(data.ToArray(), options);
         return e;
     }
 }

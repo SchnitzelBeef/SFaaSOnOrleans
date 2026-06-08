@@ -20,7 +20,7 @@ using var host = new HostBuilder()
             {
                 logging.ClearProviders();
                 logging.AddConsole();
-                logging.SetMinimumLevel(LogLevel.Warning);
+                logging.SetMinimumLevel(LogLevel.Error);
             })
             .Services.AddSerializer(ser =>
             {

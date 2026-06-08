@@ -190,7 +190,10 @@ namespace Controller
                         }}
 
                         int index = tuple.Item1;
-                        if (index < 0 || index >= childMap.Length) {{
+                        if (index < 0) {{
+                            return new System.Tuple<string, object>(null, $""ERROR: Workflow failed: {{tuple.Item2}}"");
+                        }}
+                        if (index >= childMap.Length) {{
                             return new System.Tuple<string, object>(null, ""ERROR: Invalid workflow child mapping. Index out of bounds."");
                         }}
                         string nextFunction = childMap[index];
