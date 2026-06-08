@@ -52,6 +52,10 @@ Console.WriteLine("Initializing test...");
 var redisKVS = new RedisKVS(null); // Null for logger
 var controller = new CodeController(redisKVS);
 
+
+// For debugging. TODO Remove later
+// redisKVS.Reset();
+
 var foo = new CodeRegistrationRequest
 {
     FunctionName = "AddNumbers",
@@ -64,29 +68,94 @@ var bar = new CodeRegistrationRequest
     Code = "return (System.Int64)args[0] + 1;"
 };
 
+var complex = new CodeRegistrationRequest
+{
+    FunctionName = "Branched",
+    Code = "if ((System.Int64)args[0] == 0) { return new System.Tuple<int, object>(0, 100L); } else { return new System.Tuple<int, object>(1, 123L); }"
+};
+
+/*
+    Branched: Add: Increment, Increment: Increment,
+ */
+
 var composedFunc = new FunctionCompositionRequest
 {
     FunctionName = "AddThenIncrement",
-    CompositionFunctionNames = new string[] { "AddNumbers", "Increment", "Increment" },
+    Root = new CompositionAST
+    {
+        FunctionName = "AddNumbers",
+        ChildrenInOrder = new CompositionAST[]
+        {
+            new CompositionAST
+            {
+                FunctionName = "Increment",
+                ChildrenInOrder = new CompositionAST[]
+                {
+                    new CompositionAST
+                    {
+                        FunctionName = "Increment",
+                        ChildrenInOrder = new CompositionAST[] { },
+                    },
+                }
+            },
+        }
+    }
+};
+
+var composedFunc2 = new FunctionCompositionRequest
+{
+    FunctionName = "BranchedComposition",
+    Root = new CompositionAST
+    {
+        FunctionName = "Branched",
+        ChildrenInOrder = new CompositionAST[]
+        {
+            // First branch calls the branched again.
+            new CompositionAST
+            {
+                FunctionName = "Branched",
+                ChildrenInOrder = new CompositionAST[] { },
+            },
+
+            // Second branch is null, so just return, no workflow
+            null,
+        }
+    }
 };
 
 // This does not work. Should we allow composing of compositions?
-var composedFunc2 = new FunctionCompositionRequest
+var composedFunc3 = new FunctionCompositionRequest
 {
     FunctionName = "AddThenIncrementAgain",
-    CompositionFunctionNames = new string[] { "AddThenIncrement", "Increment" },
+    Root = new CompositionAST
+    {
+        FunctionName = "AddThenIncrement",
+        ChildrenInOrder = new CompositionAST[] {
+            new CompositionAST {
+                FunctionName = "Increment",
+                ChildrenInOrder = new CompositionAST[] { },
+            }
+        },
+    }
 };
 
 Console.WriteLine($"Function registered: {controller.RegisterFunction(foo)}");
 Console.WriteLine($"Function registered: {controller.RegisterFunction(bar)}");
+Console.WriteLine($"Function registered: {controller.RegisterFunction(complex)}");
 Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc)}");
-// Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc2)}");
+Console.WriteLine($"Function composed: {controller.RegisterComposition(composedFunc2)}");
 
 // Execute function through the mediator grain to test end-to-end functionality
-await controller.ExecuteFunction(new FunctionExecutionRequest
+/*await controller.ExecuteFunction(new FunctionExecutionRequest
 {
     FunctionName = "AddThenIncrement",
     Parameters = new object[] { 10L, 20L }
+});*/
+
+await controller.ExecuteFunction(new FunctionExecutionRequest
+{
+    FunctionName = "BranchedComposition",
+    Parameters = new object[] { 0L }
 });
 
 Console.WriteLine("Finished with dev tests");

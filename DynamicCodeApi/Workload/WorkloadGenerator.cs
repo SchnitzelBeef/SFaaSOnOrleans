@@ -98,11 +98,12 @@ internal class WorkloadGenerator
 
 
         // ------ Workflows ------
-        this.controller.RegisterComposition(new FunctionCompositionRequest
+        // TODO
+        /*this.controller.RegisterComposition(new FunctionCompositionRequest
         {
             FunctionName = "NewCheckoutOrder",
             CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
-        });
+        });*/
 
     }
 
@@ -115,7 +116,7 @@ internal class WorkloadGenerator
         }
         else if (result is BadRequestObjectResult bad)
         {
-            Console.WriteLine($"Error: God bad reuslt '{bad}' when unpacking HTTP function execution result");
+            Console.WriteLine($"Error: God bad result '{bad}' when unpacking HTTP function execution result");
         }
         return bad_result;
     }
