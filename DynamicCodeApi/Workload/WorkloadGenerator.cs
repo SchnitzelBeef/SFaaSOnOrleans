@@ -2,7 +2,6 @@
 using DynamicCodeApi;
 using Infra.EcommerceFunctions;
 using Infra.EcommerceStates;
-using Infra.EventSchema;
 using MathNet.Numerics.Distributions;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
@@ -133,7 +132,6 @@ internal class WorkloadGenerator
         //     FunctionName = "NewCheckoutOrder",
         //     CompositionFunctionNames = new string[] { "ProcessCheckout", "ProcessInventoryRequest" },
         // });
-
     }
 
     // Unpacker function
@@ -285,12 +283,12 @@ internal class WorkloadGenerator
 
     public async Task<string> GetTopTen()
     {
-        
+
         var res = await this.controller.TestFunction(new FunctionExecutionRequest
-            {
-                FunctionName = "Top10",
-                Parameters = new object[] { }
-            }
+        {
+            FunctionName = "Top10",
+            Parameters = new object[] { }
+        }
         );
 
         var unpacked_res = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(res, null);

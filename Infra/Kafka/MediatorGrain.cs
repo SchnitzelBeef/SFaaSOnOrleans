@@ -1,4 +1,5 @@
 ﻿using Confluent.Kafka;
+using Infra.EventSchema;
 using Infra.Service;
 using Orleans.Concurrency;
 
@@ -190,11 +191,28 @@ public class MediatorGrain : Grain, IMediatorGrain
 
             var workflowResult = (Tuple<string, object>)result;
             var nextfunction = workflowResult.Item1;
-            var nextParams = workflowResult.Item2;
+            var output = workflowResult.Item2;
             if (nextfunction != null)
             {
-                var nextEvent = new Event(nextfunction, new object[] { nextParams }, true);
+                var nextEvent = new Event(nextfunction, new object[] { output }, true);
                 var _ = ProduceNextWorkflow(nextEvent);
+            }
+
+            // TODO, handle Kafka here
+            if (output is Inventory)
+            {
+                var i = (Inventory)output;
+                Console.WriteLine($"Got Inventory request. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
+            }
+            else if (output is Checkout)
+            {
+                var c = (Checkout)output;
+                Console.WriteLine($"Got Checkout request. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
+            }
+            else if (output is Outcome)
+            {
+                var o = (Outcome)output;
+                Console.WriteLine($"Got Outcome request. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
             }
         }
 

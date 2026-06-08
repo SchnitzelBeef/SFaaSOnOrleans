@@ -39,7 +39,13 @@ namespace Controller
     public class FunctionCompositionRequest
     {
         public string FunctionName { get; set; }
-        public string[] CompositionFunctionNames { get; set; }
+        public CompositionAST Root { get; set; }
+    }
+
+    public class CompositionAST
+    {
+        public string FunctionName { get; set; }
+        public CompositionAST[] ChildrenInOrder { get; set; }
     }
 
     [ApiController]
@@ -97,53 +103,111 @@ namespace Controller
         public IActionResult RegisterComposition([FromBody] FunctionCompositionRequest request)
         {
             if (string.IsNullOrWhiteSpace(request.FunctionName))
-                return BadRequest("Function name must be provided.");
+                return BadRequest("Function name is missing.");
 
-            foreach (var name in request.CompositionFunctionNames)
+            if (ValidateCompositionTree(request.Root))
             {
-                if (string.IsNullOrWhiteSpace(name))
-                    return BadRequest("Function composition name must be provided.");
-
-                if (this.kvs.GetString(name) == null)
-                    return NotFound($"Function '{name}' not found.");
+                return BadRequest("Malformed composition tree. Missing proper functions names.");
             }
 
-            var namePrefix = request.FunctionName + "Workflow";
-            for (var i = 0; i < request.CompositionFunctionNames.Length; i++)
-            {
-                var name = request.CompositionFunctionNames[i];
-                var code = this.kvs.GetString(name);
+            var namePrefix = "Workflow" + request.Root.FunctionName;
+            HandleCompositionTree(request.Root, namePrefix, 0, request.FunctionName);
 
-                // First function is named after the workflow function
-                var functionName = request.FunctionName;
-                if (i != 0)
-                {
-                    functionName = $"{namePrefix}{i}{name}";
-                }
-
-                // Last function is null
-                var nextNameInCode = "null";
-                if (i != request.CompositionFunctionNames.Length - 1)
-                {
-                    var nextName = request.CompositionFunctionNames[i + 1];
-                    nextNameInCode = $"\"{namePrefix}{i + 1}{nextName}\"";
-                }
-
-                // Every other function is named based uniquely on workflow + index + name
-
-                // Create a new intermediate function for this workflow step
-                // It returns both its result and the name of the next function
-                RegisterFunction(new CodeRegistrationRequest
-                {
-                    FunctionName = functionName,
-                    Code = $@"
-                        System.Func<object[], object> __inner__ = args => {{ {code} }};
-                        return new System.Tuple<string, object>({nextNameInCode}, __inner__(args));",
-                });
-            }
-
-            return Ok($"Succesfully created workflow {request.FunctionName}");
+            return Ok($"Succesfully created workflow {request.Root.FunctionName}");
         }
+
+        private bool ValidateCompositionTree(CompositionAST node)
+        {
+            if (node == null)
+            {
+                // Allow empty children
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(node.FunctionName))
+                return true;
+
+            if (this.kvs.GetString(node.FunctionName) == null)
+                return true;
+
+            foreach (var child in node.ChildrenInOrder)
+            {
+                if (ValidateCompositionTree(child))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void HandleCompositionTree(CompositionAST node, string namePrefix, int depth, string rootName)
+        {
+            if (node == null)
+            {
+                // Allow empty children
+                return;
+            }
+
+            foreach (var child in node.ChildrenInOrder)
+            {
+                HandleCompositionTree(child, namePrefix, depth + 1, null);
+            }
+
+            var code = this.kvs.GetString(node.FunctionName);
+
+            // First function is named after the workflow function
+            string functionName;
+            if (depth == 0)
+                functionName = rootName;
+            else
+                functionName = $"{namePrefix}{depth}{node.FunctionName}";
+
+            // Every other function is named based uniquely on workflow + index + name
+            var childNames = string.Join(",", node.ChildrenInOrder.Select(n =>
+            {
+                if (n != null)
+                    return $"\"{namePrefix}{depth + 1}{n.FunctionName}\"";
+                else
+                    return "null";
+            }));
+
+            // Create a new intermediate function for this workflow step
+            // It returns both its result and the name of the next function
+            RegisterFunction(new CodeRegistrationRequest
+            {
+                FunctionName = functionName,
+                Code = $@"
+                    System.Func<object[], object> __inner__{functionName}__ = args => {{ {code} }};
+                    var result = __inner__{functionName}__(args);
+                    
+                    string[] childMap = new string[] {{{childNames}}};
+                    
+                    if (result is System.Tuple<int, object>) {{
+                        var tuple = (System.Tuple<int, object>)result;
+                        
+                        if (childMap.Length == 0) {{
+                            return new System.Tuple<string, object>(null, tuple.Item2);
+                        }}
+
+                        int index = tuple.Item1;
+                        if (index < 0 || index >= childMap.Length) {{
+                            return new System.Tuple<string, object>(null, ""ERROR: Invalid workflow child mapping. Index out of bounds."");
+                        }}
+                        string nextFunction = childMap[index];
+                        return new System.Tuple<string, object>(nextFunction, tuple.Item2);
+                    }} else {{
+                        if (childMap.Length == 0) {{
+                            return new System.Tuple<string, object>(null, result);
+                        }}
+                        if (childMap.Length != 1) {{
+                            return new System.Tuple<string, object>(null, ""ERROR: Invalid workflow child mapping. Map does not match single implicit branch."");
+                        }}
+                        string nextFunction = childMap[0];
+                        return new System.Tuple<string, object>(nextFunction, result);
+                    }}",
+            });
+        }
+
 
         // Execute function
         [HttpPost("execute")]
