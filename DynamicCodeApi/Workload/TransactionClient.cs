@@ -13,7 +13,7 @@ internal class TransactionClient
     private int numProductActor = 100;
 
     private int numEpochs = 1;
-    private int numWarmupEpochs = 0;
+    private int numWarmupEpochs = 1;
 
     // for experiment setting
     private int numCustomerThread = 8;
@@ -193,7 +193,7 @@ internal class TransactionClient
                 {
                     break;
                 }
-                Thread.Sleep(100);
+                Thread.Sleep(10);
             }
             currentCount = newCount;
             var endTime = (long)(watch.ElapsedTicks * 1e9 / Stopwatch.Frequency);
