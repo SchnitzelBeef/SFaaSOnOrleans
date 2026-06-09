@@ -144,7 +144,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
                     KafkaSequenceToken token = new KafkaSequenceToken(consumeResult.Offset.Value, consumeResult.Partition.Value);
                     await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value, token);
-                    this._consumer.Commit();
+                    this._consumer.Commit(consumeResult);
                 }
                 catch (ConsumeException e)
                 {
@@ -154,7 +154,7 @@ public class MediatorGrain : Grain, IMediatorGrain
             Console.WriteLine("Cancelled was requested. Closing mediator.");
         }
         catch (Exception ex)
-        {   
+        {
             Console.WriteLine($"Consumer loop error: {ex}");
         }
         finally

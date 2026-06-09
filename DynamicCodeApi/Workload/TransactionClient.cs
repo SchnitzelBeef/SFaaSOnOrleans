@@ -94,7 +94,7 @@ internal class TransactionClient
             Console.WriteLine("\n ***********************************************************************");
 
             // wait for a while to make sure all transactions are done
-            //Thread.Sleep(5000);
+            Thread.Sleep(5000);
 
             // the top-10 customers
             Console.WriteLine($"The top-10 customers are: ");
