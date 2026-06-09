@@ -91,12 +91,12 @@ public class ExecutorGrain : Grain, IExecutorGrain
         }
 
         // Use the cached assembly to execute the function
-        //Console.WriteLine($"\nExecuting function '{functionName}'");
+        Console.WriteLine($"\nExecuting function '{functionName}'");
         var cached = CompiledCache[functionName];
         var instance = Activator.CreateInstance(cached.Type, kvs);
         var method = cached.Type.GetMethod("Execute");
         var result = method.Invoke(instance, new object[] { parameters });
-        //Console.WriteLine($"Execution result: {result}");
+        Console.WriteLine($"Execution result: {result}");
         return result;
     }
 

@@ -193,7 +193,9 @@ internal class WorkloadGenerator
             Key = $"Customer-{(long)1e9}",
             Object = new CustomerState
             {
-                Balance = customerBalanceDistribution.Sample()
+                Balance = customerBalanceDistribution.Sample(),
+                LastCheckoutEventOffset = new Dictionary<int, long>(),
+                LastOutcomeEventOffset = new Dictionary<int, long>()
             }
         };
         this.controller.RegisterKeyObject(samplerState);
