@@ -70,7 +70,10 @@ namespace Controller
                 return BadRequest("Function name and code must be provided.");
 
             if (this.kvs.PutString(request.FunctionName, request.Code))
-                Console.WriteLine($"Function '{request.FunctionName}' registered in RedisKVS := {request.Code}");
+            {
+                //Console.WriteLine($"Function '{request.FunctionName}' registered in RedisKVS := {request.Code}");
+            }
+
             return Ok($"Function '{request.FunctionName}' registered successfully.");
         }
 

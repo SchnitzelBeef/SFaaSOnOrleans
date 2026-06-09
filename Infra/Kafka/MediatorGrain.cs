@@ -102,9 +102,11 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     public async Task<bool> StartWorkflow(string functionName, object[] parameters)
     {
+        /*
         Console.WriteLine($"\nStarting workflow: {functionName}");
         foreach (var p in parameters)
             Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
+        */
 
         var @event = new Event(functionName, parameters, true);
         return await ProduceNextWorkflow(@event);
@@ -175,7 +177,7 @@ public class MediatorGrain : Grain, IMediatorGrain
 
         if (@event == null || @event.functionName == null || @event.parameters == null)
         {
-            Console.WriteLine($"\nMediator got null event");
+            Console.WriteLine($"Mediator got null event");
             return;
         }
 
@@ -183,11 +185,13 @@ public class MediatorGrain : Grain, IMediatorGrain
         var parameters = @event.parameters;
         var isWorkflow = @event.isWorkflow;
 
+        /*
         Console.WriteLine($"\nRecieved message: {functionName}. Is workflow: {isWorkflow}");
         foreach (var p in parameters)
         {
             Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
         }
+        */
 
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
@@ -218,9 +222,11 @@ public class MediatorGrain : Grain, IMediatorGrain
 
             if (nextfunction != null)
             {
+                /*
                 Console.WriteLine($"Producing next workflow: {functionName} -> {nextfunction}.");
                 foreach (var p in output)
                     Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
+                */
 
                 var nextEvent = new Event(nextfunction, output, true);
                 var _ = ProduceNextWorkflow(nextEvent);
