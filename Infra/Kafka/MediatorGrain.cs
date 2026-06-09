@@ -148,6 +148,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                     Console.WriteLine($"Consume error: {e.Error.Reason}");
                 }
             }
+            Console.WriteLine("Cancelled was requested. Closing mediator.");
         }
         catch (Exception ex)
         {

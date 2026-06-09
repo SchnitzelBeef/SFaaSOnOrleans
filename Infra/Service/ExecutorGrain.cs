@@ -6,13 +6,15 @@ using Microsoft.Extensions.Logging;
 using Orleans.Concurrency;
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 namespace Infra.Service;
 
 [Reentrant]
 [StatelessWorker]
 public class ExecutorGrain : Grain, IExecutorGrain
 {
-    public static readonly ConcurrentDictionary<string, (Assembly Assembly, Type Type)> CompiledCache = new();
+    public static readonly ConcurrentDictionary<string, (Assembly Assembly, Type Type, string Hash)> CompiledCache = new();
 
     private readonly IKeyValueStore kvs;
 
@@ -44,8 +46,16 @@ public class ExecutorGrain : Grain, IExecutorGrain
     // Dynamically compile and execute the function with registry context
     private static object DoExecute(string functionName, string code, IKeyValueStore kvs, object[] parameters)
     {
-        if (!CompiledCache.TryGetValue(functionName, out var cached))
+        string newHash = GetCodeHash(code);
+        string oldHash = null;
+        if (CompiledCache.TryGetValue(functionName, out var oldCached))
         {
+            oldHash = oldCached.Hash;
+        }
+
+        if (oldHash == null || newHash != oldHash)
+        {
+            Console.WriteLine($"Compiling function '{functionName}'");
             // Wrap user code in a class and method
             string wrappedCode = $@"
             using System;
@@ -77,17 +87,24 @@ public class ExecutorGrain : Grain, IExecutorGrain
             var type = assembly.GetType("DynamicClass");
 
             // Cache the compiled assembly and type
-            cached = (assembly, type);
-            CompiledCache[functionName] = cached;
+            CompiledCache[functionName] = (assembly, type, newHash);
         }
 
         // Use the cached assembly to execute the function
         Console.WriteLine($"\nExecuting function '{functionName}'");
+        var cached = CompiledCache[functionName];
         var instance = Activator.CreateInstance(cached.Type, kvs);
         var method = cached.Type.GetMethod("Execute");
         var result = method.Invoke(instance, new object[] { parameters });
         Console.WriteLine($"Execution result: {result}");
         return result;
+    }
+
+    public static string GetCodeHash(string code)
+    {
+        return Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(code))
+        );
     }
 
     public static Assembly CompileAssembly(string functionName, string code)
