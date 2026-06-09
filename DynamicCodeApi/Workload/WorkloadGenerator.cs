@@ -13,6 +13,7 @@ internal class WorkloadGenerator
 {
     private readonly int numCustomerActor;
     private readonly int numProductActor;
+    private OrleansClientManager clientManager;
     private IClusterClient client;
     private bool isClientConnected = false;
 
@@ -22,6 +23,7 @@ internal class WorkloadGenerator
     private IDiscreteDistribution productPriceDistribution;   // the price of items
     private IDiscreteDistribution customerBalanceDistribution;// the customer balance
     private IDiscreteDistribution customerQtyDistribution;    // max qty a customer can buy for a product
+    private IDiscreteDistribution isCheckoutElseTop10;        // checkout = 0, top10 = 1
 
     // Used to issue requests to RedisKSV
     // Maybe a bit overkill since we can call the functions directly without HTTP wrappers
@@ -40,6 +42,7 @@ internal class WorkloadGenerator
         productPriceDistribution = new DiscreteUniform(1, 1000, new Random());
         customerBalanceDistribution = new DiscreteUniform(1, 10000, new Random());
         customerQtyDistribution = new DiscreteUniform(1, 10, new Random());
+        isCheckoutElseTop10 = new DiscreteUniform(0, 1, new Random());
 
         // wait until the client is created and connected
         InitiateClient();
@@ -48,8 +51,13 @@ internal class WorkloadGenerator
 
     private async void InitiateClient()
     {
-        this.client = await OrleansClientManager.GetClient();
-        isClientConnected = true;
+        this.clientManager = new OrleansClientManager();
+        this.client = await this.clientManager.StartClient();
+        this.isClientConnected = true;
+    }
+    public async Task StopClient()
+    {
+        await this.clientManager.StopClient();
     }
 
     public async Task InitAllActorFunctions()
@@ -57,7 +65,6 @@ internal class WorkloadGenerator
         // Init all actor functions in the Redis KVS:
 
         // ------ Customer functions ------
-
         this.controller.RegisterFunction(new CodeRegistrationRequest
         {
             FunctionName = "ProcessCheckout",
@@ -101,7 +108,6 @@ internal class WorkloadGenerator
 
 
         // ------ Analytics functions ------
-
         this.controller.RegisterFunction(new CodeRegistrationRequest
         {
             FunctionName = "UpdateAsync",
@@ -161,26 +167,11 @@ internal class WorkloadGenerator
         });
     }
 
-    // Unpacker function
-    private T FunctionExecutionUnpacker<T>(IActionResult result, T bad_result)
-    {
-        if (result is OkObjectResult ok)
-        {
-            return (T)ok.Value;
-        }
-        else if (result is BadRequestObjectResult bad)
-        {
-            Console.WriteLine($"Error: Got bad result '{bad}' when unpacking HTTP function execution result");
-        }
-        return bad_result;
-    }
-
     public async Task InitAllActors()
     {
         // Init all actors with an initial state in the Redis KVS:
 
         // ------ Customer ------
-
         for (int i = 0; i < numCustomerActor; i++)
         {
             ObejctRegistrationRequest customerState = new ObejctRegistrationRequest
@@ -196,9 +187,18 @@ internal class WorkloadGenerator
             this.controller.RegisterKeyObject(customerState);
         }
 
+        // Init sampler customer
+        ObejctRegistrationRequest samplerState = new ObejctRegistrationRequest
+        {
+            Key = $"Customer-{(long)1e9}",
+            Object = new CustomerState
+            {
+                Balance = customerBalanceDistribution.Sample()
+            }
+        };
+        this.controller.RegisterKeyObject(samplerState);
 
         // ------ Products ------
-
         for (int i = 0; i < numProductActor; i++)
         {
             ObejctRegistrationRequest productState = new ObejctRegistrationRequest
@@ -214,10 +214,7 @@ internal class WorkloadGenerator
             this.controller.RegisterKeyObject(productState);
         }
 
-
-
         // ------ Analytics ------
-
         ObejctRegistrationRequest analyticsState = new ObejctRegistrationRequest
         {
             Key = $"Analytics-0",
@@ -261,6 +258,20 @@ internal class WorkloadGenerator
         // });
     }
 
+    // Unpacker function
+    private T FunctionExecutionUnpacker<T>(IActionResult result, T bad_result)
+    {
+        if (result is OkObjectResult ok)
+        {
+            return (T)ok.Value;
+        }
+        else if (result is BadRequestObjectResult bad)
+        {
+            Console.WriteLine($"Error: Got bad result '{bad.Value}' when unpacking HTTP function execution result");
+        }
+        return bad_result;
+    }
+
     public async Task<Tuple<List<long>, bool>> GetAllInventory()
     {
         var tasks = new List<Task<IActionResult>>();
@@ -290,7 +301,6 @@ internal class WorkloadGenerator
         return new Tuple<List<long>, bool>(inventory, hasEverGotNegativeInventory);
     }
 
-    // OBS: Should be implemented. Waiting for composition to work
     public async Task NewCheckOutOrder()
     {
         var customerID = customerDistribution.Sample();
@@ -305,9 +315,67 @@ internal class WorkloadGenerator
         });
     }
 
+    public async Task NewOrder()
+    {
+        var isCheckout = isCheckoutElseTop10.Sample() == 0;
+        if (isCheckout)
+        {
+            var customerID = customerDistribution.Sample();
+            await NewCheckOutOrder(customerID);
+        }
+        else
+        {
+            await GetTopTen();
+        }
+    }
+
+    public async Task NewCheckOutOrder(long customerID)
+    {
+        var productID = productDistribution.Sample();
+        var price = await GetPrice(productID);
+        var qty = customerQtyDistribution.Sample();
+
+        var res = await this.controller.ExecuteFunction(new FunctionExecutionRequest
+        {
+            FunctionName = "NewCheckoutOrder",
+            Parameters = new object[] { customerID, new Checkout(productID, price, qty) }
+        });
+    }
+
+    public async Task<int> GetCustomerProcessedCount(long customerId)
+    {
+        var res = await this.controller.TestFunction(new FunctionExecutionRequest
+        {
+            FunctionName = "CustomerOutcomeProcessedCount",
+            Parameters = new object[] { customerId }
+        });
+
+        var unpacked_res = FunctionExecutionUnpacker<int>(res, -1);
+        if (unpacked_res == -1)
+        {
+            throw new Exception("Unable to get price");
+        }
+        return unpacked_res;
+    }
+
+    public async Task<double> GetPrice(long productId)
+    {
+        var res = await this.controller.TestFunction(new FunctionExecutionRequest
+        {
+            FunctionName = "GetPrice",
+            Parameters = new object[] { productId }
+        });
+
+        var unpacked_res = FunctionExecutionUnpacker<double>(res, -1);
+        if (unpacked_res == -1)
+        {
+            throw new Exception("Unable to get price");
+        }
+        return unpacked_res;
+    }
+
     public async Task<string> GetTopTen()
     {
-
         var res = await this.controller.TestFunction(new FunctionExecutionRequest
         {
             FunctionName = "Top10",
@@ -316,7 +384,6 @@ internal class WorkloadGenerator
         );
 
         var unpacked_res = FunctionExecutionUnpacker<List<KeyValuePair<long, double>>>(res, null);
-
         if (unpacked_res == null)
         {
             return "Function execution error in controller when fetching Top10 from Analytics-0";
