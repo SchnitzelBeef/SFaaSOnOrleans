@@ -24,7 +24,6 @@ namespace Infra.EcommerceFunctions
                 // If checkout is successful, update the total sales for the corresponding product
                 if (status == Status.OK)
                 {{
-                    // We update a pointer so we most likely do not  have to perform kvs.Put here
                     var previous = state.Query.GetValueOrDefault(customerId, 0);
                     state.Query[customerId] = previous + total;
                 }}
@@ -56,7 +55,10 @@ namespace Infra.EcommerceFunctions
         public static string GetCustomerOutcomeProcessedCountFunction()
         {
             // We only have one "actor" for analytics, so we don't accept parameter currently
-            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> { });
+            var args_code = FunctionsHelper.GetArgs(new List<(Type, string)>
+            {
+                (typeof(long), "customerId")
+            });
 
             var code = $@"
                 {args_code}
@@ -68,7 +70,6 @@ namespace Infra.EcommerceFunctions
         }
 
         public static string GetGetSumOfAllBalanceFunction()
-
         {
             // We only have one "actor" for analytics, so we don't accept parameter currently
             var args_code = FunctionsHelper.GetArgs(new List<(Type, string)> { });

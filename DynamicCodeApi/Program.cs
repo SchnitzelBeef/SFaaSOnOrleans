@@ -4,7 +4,8 @@ using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
 
-var sharedClient = OrleansClientManager.GetClient().Result;
+var sharedClientManager = new OrleansClientManager();
+var sharedClient = await sharedClientManager.StartClient();
 
 ThreadStart work = () =>
 {

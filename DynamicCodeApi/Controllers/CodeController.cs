@@ -52,12 +52,14 @@ namespace Controller
     public class CodeController : ControllerBase
     {
         private readonly IKeyValueStore kvs;
-        private readonly IClusterClient client;
+        public OrleansClientManager clientManager; // public so we can stop it softly
+        private IClusterClient client;
 
         public CodeController(IKeyValueStore kvs)
         {
             this.kvs = kvs;
-            this.client = OrleansClientManager.GetClient().Result;
+            this.clientManager = new OrleansClientManager();
+            this.client = this.clientManager.StartClient().Result;
         }
 
         // Register function
