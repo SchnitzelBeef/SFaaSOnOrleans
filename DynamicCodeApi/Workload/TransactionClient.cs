@@ -12,12 +12,12 @@ internal class TransactionClient
     private int numCustomerActor = 10;
     private int numProductActor = 100;
 
-    private int numEpochs = 1;
-    private int numWarmupEpochs = 1;
+    private int numEpochs = 10;
+    private int numWarmupEpochs = 2;
 
     // for experiment setting
     private int numCustomerThread = 8;
-    private TimeSpan runTime = TimeSpan.FromMilliseconds(1000);    // use this time to control how long time the experiment will run
+    private TimeSpan runTime = TimeSpan.FromMilliseconds(10000);    // use this time to control how long time the experiment will run
 
     private CountdownEvent allThreadsStart;
     private CountdownEvent allThreadsAreDone;
