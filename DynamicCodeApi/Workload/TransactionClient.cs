@@ -17,7 +17,7 @@ internal class TransactionClient
 
     // for experiment setting
     private int numCustomerThread = 8;
-    private TimeSpan runTime = TimeSpan.FromMilliseconds(10000);    // use this time to control how long time the experiment will run
+    private TimeSpan runTime = TimeSpan.FromMilliseconds(1000);    // use this time to control how long time the experiment will run
 
     private CountdownEvent allThreadsStart;
     private CountdownEvent allThreadsAreDone;
@@ -40,13 +40,16 @@ internal class TransactionClient
         var allTimestamps = new List<List<List<Tuple<long, long>>>>();
 
         var workload = new WorkloadGenerator(numCustomerActor, numProductActor, this.controller);
+
+        // ================================================================================================================
+        // STEP 0: publish all actor functions to the RedisKVS
+        Console.WriteLine("\n ***********************************************************************");
+        await workload.InitAllActorFunctions();
+
+        await workload.InitAnalytics();
+
         for (int epoch = 0; epoch < numEpochs + numWarmupEpochs; epoch++)
         {
-            // ================================================================================================================
-            // STEP 0: publish all actor functions to the RedisKVS
-            Console.WriteLine("\n ***********************************************************************");
-            await workload.InitAllActorFunctions();
-
             // ================================================================================================================
             // STEP 1: init all actors
             await workload.InitAllActors();

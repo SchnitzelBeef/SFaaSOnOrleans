@@ -215,7 +215,10 @@ internal class WorkloadGenerator
             };
             this.controller.RegisterKeyObject(productState);
         }
+    }
 
+    public async Task InitAnalytics()
+    {
         // ------ Analytics ------
         ObejctRegistrationRequest analyticsState = new ObejctRegistrationRequest
         {
@@ -228,36 +231,6 @@ internal class WorkloadGenerator
             }
         };
         this.controller.RegisterKeyObject(analyticsState);
-
-        // EXAMPLES FOR TESTING
-
-        // Example of processing checkout
-        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
-        // {
-        //     FunctionName = "ProcessCheckout",
-        //     Parameters = new object[] {0L, new Checkout(0, 10, 2)}
-        // });
-
-        // Example of processing inventory
-        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
-        // {
-        //     FunctionName = "ProcessInventoryRequest",
-        //     Parameters = new object[] {0L, new Inventory(1, 1, 1)}
-        // });
-
-        // Example of processing outcome
-        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
-        // {
-        //     FunctionName = "UpdateAsync",
-        //     Parameters = new object[] {new Outcome(0, 0, 10, Status.OK)}
-        // });
-
-        // Example of processing NewCheckoutOrder
-        // await this.controller.ExecuteFunction(new FunctionExecutionRequest
-        // {
-        //     FunctionName = "NewCheckoutOrder",
-        //     Parameters = new object[] {0L, new Checkout(0, 10, 2)}
-        // });
     }
 
     // Unpacker function
