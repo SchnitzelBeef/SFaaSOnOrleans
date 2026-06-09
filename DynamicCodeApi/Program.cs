@@ -3,6 +3,7 @@ using DynamicCodeApi.Workload;
 using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
+using Infra.Service;
 
 var sharedClientManager = new OrleansClientManager();
 var sharedClient = await sharedClientManager.StartClient();
@@ -40,11 +41,14 @@ thread.Start();
 // wait for the HTTP server to start, this is probably not the best way to do this
 Thread.Sleep(5000);
 
-//obs, temporary setup
-// only uses single mediator grain - should be divided into proper Kafka partitions and Topics
-// and initiated inside transaction client/workload generator  
-var mediatorGrain = sharedClient.GetGrain<IMediatorGrain>("mediator");
-await mediatorGrain.Init(Constants.CheckoutNamespace, Constants.CheckoutTopicGroup, 0, -1);
+for (int i = 0; i < Constants.NumMediatorActors; i++)
+{
+    await sharedClient.GetGrain<IMediatorGrain>(i).Init();
+}
+for (int i = 0; i < Constants.NumExecutorActors; i++)
+{
+    await sharedClient.GetGrain<IExecutorGrain>(i).Init();
+}
 
 // Run transaction client (using new RedisKVS)
 var transactionClient = new TransactionClient();

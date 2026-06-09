@@ -1,7 +1,7 @@
 ﻿namespace Infra.Kafka;
 
-public interface IMediatorGrain : IGrainWithStringKey
+public interface IMediatorGrain : IGrainWithIntegerKey
 {
-    Task Init(string Topic, string GroupId, int Partition, int offset);
+    Task Init();
     Task<bool> StartWorkflow(string functionName, object[] parameters);
 }

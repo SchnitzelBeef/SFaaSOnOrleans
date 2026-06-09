@@ -4,6 +4,8 @@ public class Constants
 {
     public const int SiloPort = 11111;
     public const int GatewayPort = 30000;
+    public const int NumMediatorActors = 1;
+    public const int NumExecutorActors = 1;
     public const string ClusterId = "LocalTestCluster";
     public const string ServiceId = "SFaaS";
     public const string CheckoutNamespace = "checkout";
@@ -14,6 +16,11 @@ public class Constants
     public const string CheckoutTopicGroup = "checkout-group";
     public const string InventoryTopicGroup = "inventory-group";
     public const string OutcomeTopicGroup = "outcome-group";
+    public const string EventTopicGroup = "event-group";
+    public const string CheckoutTopic = "checkout";
+    public const string InventoryTopic = "inventory";
+    public const string OutcomeTopic = "outcome";
+    public const string EventTopic = "event";
     public const string RedisPrimary = "127.0.0.1:6379";
     public const string RedisSecondary = "127.0.0.1:6380";
 }

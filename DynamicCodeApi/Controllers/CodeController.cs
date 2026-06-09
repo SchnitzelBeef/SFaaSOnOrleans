@@ -1,4 +1,5 @@
 ﻿using DynamicCodeApi;
+using Infra;
 using Infra.Interfaces;
 using Infra.Kafka;
 using Infra.Service;
@@ -60,6 +61,17 @@ namespace Controller
             this.kvs = kvs;
             this.clientManager = new OrleansClientManager();
             this.client = this.clientManager.StartClient().Result;
+        }
+
+        private IMediatorGrain GetMediator()
+        {
+            var rng = new Random();
+            return this.client.GetGrain<IMediatorGrain>(rng.Next(0, Constants.NumMediatorActors));
+        }
+        private IExecutorGrain GetExecutor()
+        {
+            var rng = new Random();
+            return this.client.GetGrain<IExecutorGrain>(rng.Next(0, Constants.NumExecutorActors));
         }
 
         // Register function
@@ -260,8 +272,7 @@ namespace Controller
             try
             {
                 // Example below should only be used for testing purposes
-                var worker = this.client.GetGrain<IExecutorGrain>(0);
-                return Ok(await worker.Execute(request.FunctionName, request.Parameters));
+                return Ok(await GetExecutor().Execute(request.FunctionName, request.Parameters));
             }
             catch (Exception ex)
             {
@@ -273,8 +284,7 @@ namespace Controller
         private Task<object> Dispatch(string functionName, object[] parameters)
         {
             // Pick a well-defind MediatorGrain and call StartWorkflow
-            var mediatorGrain = this.client.GetGrain<IMediatorGrain>("mediator"); //obs
-            mediatorGrain.StartWorkflow(functionName, parameters);
+            GetMediator().StartWorkflow(functionName, parameters);
 
             // Could also be made to return an actual result
             return Task.FromResult((object)null);

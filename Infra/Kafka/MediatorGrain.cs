@@ -8,27 +8,22 @@ namespace Infra.Kafka;
 [Reentrant]
 public class MediatorGrain : Grain, IMediatorGrain
 {
-    private IConsumer<string, Event> _consumer;
-
+    private long id;
     private string _topic;
-    private int _partition;
-    private Offset _offset;
+    private IConsumer<string, Event> _consumer;
 
     private CancellationToken cancellationToken;
 
-    private IProducer<Null, Event> producer;
-    private IProducer<Null, Inventory> inventoryProducer;
-    private IProducer<Null, Checkout> checkoutProducer;
-    private IProducer<Null, Outcome> outcomeProducer;
-    private TopicPartition topicPartition;
-    private TopicPartition inventoryTopicPartition;
-    private TopicPartition checkoutTopicPartition;
-    private TopicPartition outcomeTopicPartition;
+    private IProducer<string, Event> producer;
+    private IProducer<long, Inventory> inventoryProducer;
+    private IProducer<long, Checkout> checkoutProducer;
+    private IProducer<long, Outcome> outcomeProducer;
 
+    private List<IExecutorGrain> executors;
     private TaskScheduler scheduler;
-    private IExecutorGrain executor;
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
+        this.id = this.GetPrimaryKeyLong();
         // For some reason, using the provided cancellation token makes the consumer loop throw an error down the road
         // Creating a new one does not seem to cause errors
         // This is confusing
@@ -37,35 +32,22 @@ public class MediatorGrain : Grain, IMediatorGrain
         return Task.CompletedTask;
     }
 
-    public Task Init(string Topic, string GroupId, int Partition, int offset)
+    public Task Init()
     {
-        this._topic = Topic;
-        this._partition = Partition;
-
-        if (offset >= 0)
-            this._offset = new Offset(offset);
-        else
-            this._offset = Offset.End;
-
         var consumerConfig = new ConsumerConfig
         {
-            GroupId = GroupId,
             BootstrapServers = Constants.KafkaService,
-            EnableAutoCommit = false
+            GroupId = Constants.EventTopicGroup,
+            EnableAutoCommit = false,
+            AllowAutoCreateTopics = true,
         };
 
         this._consumer = new ConsumerBuilder<string, Event>(consumerConfig)
             .SetValueDeserializer(new EventSerializer<Event>())
             .Build();
 
-        var topicPartitionOffset =
-                  new TopicPartitionOffset(this._topic, new Partition(this._partition), this._offset);
-
-        this._consumer.Assign(topicPartitionOffset);
-
-        this.executor = GrainFactory.GetGrain<IExecutorGrain>(0);
-
-        Task.Run(() => StartConsuming(this.cancellationToken), this.cancellationToken);
+        this._topic = Constants.EventTopic;
+        this._consumer.Subscribe(this._topic);
 
         var producerConfig = new ProducerConfig
         {
@@ -73,30 +55,44 @@ public class MediatorGrain : Grain, IMediatorGrain
             AllowAutoCreateTopics = true
         };
 
-        this.producer = new ProducerBuilder<Null, Event>(producerConfig)
+        this.producer = new ProducerBuilder<string, Event>(producerConfig)
             .SetValueSerializer(new EventSerializer<Event>())
             .Build();
 
-        this.inventoryProducer = new ProducerBuilder<Null, Inventory>(producerConfig)
+        this.inventoryProducer = new ProducerBuilder<long, Inventory>(producerConfig)
             .SetValueSerializer(new EventSerializer<Inventory>())
             .Build();
 
-        this.checkoutProducer = new ProducerBuilder<Null, Checkout>(producerConfig)
+        this.checkoutProducer = new ProducerBuilder<long, Checkout>(producerConfig)
             .SetValueSerializer(new EventSerializer<Checkout>())
             .Build();
 
-        this.outcomeProducer = new ProducerBuilder<Null, Outcome>(producerConfig)
+        this.outcomeProducer = new ProducerBuilder<long, Outcome>(producerConfig)
             .SetValueSerializer(new EventSerializer<Outcome>())
             .Build();
 
-        // Define topic partition, should be better partitioned
-        // currently we just use one partition for simplicity
-        this.topicPartition = new TopicPartition(this._topic, new Partition(this._partition));
-        this.inventoryTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
-        this.checkoutTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
-        this.outcomeTopicPartition = new TopicPartition(this._topic, new Partition(this._partition));
+        // HACK. See GetExecutor
+        this.executors = new List<IExecutorGrain>();
+        for (int i = 0; i < Constants.NumExecutorActors; i++)
+        {
+            this.executors.Add(GrainFactory.GetGrain<IExecutorGrain>(i));
+        }
+
+        Task.Run(() => StartConsuming(this.cancellationToken), this.cancellationToken);
 
         return Task.CompletedTask;
+    }
+
+    private IExecutorGrain GetExecutor()
+    {
+        var rng = new Random();
+
+        // HACK. Since we're spawning a dotnet thread instead of using orleans, we cannot use GetGrain inside the thread.
+        // Instead we must call GetGrain before and cache the results. This does mean if the handle becomes stale (idk if it can)
+        // Then this won't work. 
+        // A better solution would be to do like we did last assignment, using orleans timer and schedule.
+        return executors[rng.Next(0, Constants.NumExecutorActors)];
+        //return GrainFactory.GetGrain<IExecutorGrain>(rng.Next(0, Constants.NumExecutorActors));
     }
 
 
@@ -117,9 +113,10 @@ public class MediatorGrain : Grain, IMediatorGrain
         // Assemble function name and parameters into an event object
         try
         {
-            var res = await this.producer.ProduceAsync(this.topicPartition, new Message<Null, Event>
+            var res = await this.producer.ProduceAsync(this._topic, new Message<string, Event>
             {
                 Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                Key = @event.functionName,
                 Value = @event
             });
             return res.Status == PersistenceStatus.Persisted;
@@ -134,7 +131,7 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     private async Task StartConsuming(CancellationToken cancellationToken)
     {
-        Console.WriteLine($"Started consuming from topic '{this._topic}', partition {this._partition}, starting at offset {this._offset.Value}...");
+        Console.WriteLine($"Started consuming from topic '{this._topic}'...");
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -143,7 +140,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 {
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
                     await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value);
-                    this._consumer.Commit();
+                    this._consumer.Commit(consumeResult);
                 }
                 catch (ConsumeException e)
                 {
@@ -194,7 +191,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         */
 
         // Trigger executor grain and await function output
-        var result = await executor.Execute(functionName, parameters);
+        var result = await GetExecutor().Execute(functionName, parameters);
 
         if (isWorkflow)
         {
@@ -239,9 +236,10 @@ public class MediatorGrain : Grain, IMediatorGrain
                 {
                     var i = (Inventory)obj;
                     Console.WriteLine($"Got Inventory. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
-                    await inventoryProducer.ProduceAsync(this.inventoryTopicPartition, new Message<Null, Inventory>
+                    await inventoryProducer.ProduceAsync(Constants.InventoryTopic, new Message<long, Inventory>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Key = i.customerId,
                         Value = i
                     });
                 }
@@ -249,9 +247,10 @@ public class MediatorGrain : Grain, IMediatorGrain
                 {
                     var c = (Checkout)obj;
                     Console.WriteLine($"Got Checkout. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
-                    await checkoutProducer.ProduceAsync(this.checkoutTopicPartition, new Message<Null, Checkout>
+                    await checkoutProducer.ProduceAsync(Constants.CheckoutTopic, new Message<long, Checkout>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Key = c.productId,
                         Value = c
                     });
                 }
@@ -259,9 +258,10 @@ public class MediatorGrain : Grain, IMediatorGrain
                 {
                     var o = (Outcome)obj;
                     Console.WriteLine($"Got Outcome. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
-                    await outcomeProducer.ProduceAsync(this.outcomeTopicPartition, new Message<Null, Outcome>
+                    await outcomeProducer.ProduceAsync(Constants.OutcomeTopic, new Message<long, Outcome>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
+                        Key = o.customerId,
                         Value = o
                     });
                 }
