@@ -11,8 +11,8 @@ internal class TransactionClient
     private int numProductActor = 100;
 
     // for experiment setting
-    private int numCustomerThread = 8;
-    private TimeSpan runTime = TimeSpan.FromSeconds(10);    // use this time to control how long time the experiment will run
+    private int numCustomerThread = 1;
+    private TimeSpan runTime = TimeSpan.FromMilliseconds(100);    // use this time to control how long time the experiment will run
 
     private CountdownEvent allThreadsStart;
     private CountdownEvent allThreadsAreDone;
@@ -40,7 +40,7 @@ internal class TransactionClient
         await workload.InitAllActors();
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
-        
+
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();
@@ -68,6 +68,9 @@ internal class TransactionClient
         Console.WriteLine("\n ***********************************************************************");
         if (hasEverGotNegativeInventory) Console.WriteLine($"The inventory has once become negative!!!");
         Console.WriteLine("\n ***********************************************************************");
+
+        // wait for a while to make sure all transactions are done
+        Thread.Sleep(5000);
 
         // the top-10 customers
         Console.WriteLine($"The top-10 customers are: ");

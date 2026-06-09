@@ -11,7 +11,7 @@ public class EventSerializer<TEvent> : ISerializer<TEvent>, IDeserializer<TEvent
 
     public byte[] Serialize(TEvent e, SerializationContext _)
     {
-        var data = MessagePackSerializer.Serialize(e);
+        var data = MessagePackSerializer.Serialize(e, options);
         return data;
     }
 

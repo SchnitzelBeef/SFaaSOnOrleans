@@ -102,6 +102,10 @@ public class MediatorGrain : Grain, IMediatorGrain
 
     public async Task<bool> StartWorkflow(string functionName, object[] parameters)
     {
+        Console.WriteLine($"\nStarting workflow: {functionName}");
+        foreach (var p in parameters)
+            Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
+
         var @event = new Event(functionName, parameters, true);
         return await ProduceNextWorkflow(@event);
     }
@@ -111,10 +115,6 @@ public class MediatorGrain : Grain, IMediatorGrain
         // Assemble function name and parameters into an event object
         try
         {
-            Console.WriteLine($"EVENT: {@event.functionName} : {@event.parameters}");
-            foreach (var p in @event.parameters)
-                Console.WriteLine($"Parameter type: {p?.GetType().FullName}, value: {p}");
-
             var res = await this.producer.ProduceAsync(this.topicPartition, new Message<Null, Event>
             {
                 Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
@@ -140,9 +140,8 @@ public class MediatorGrain : Grain, IMediatorGrain
                 try
                 {
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
-                    // Console.WriteLine($"Consumed message. Value = {consumeResult.Message.Value}");
                     await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value);
-                    // this._consumer.Commit();
+                    this._consumer.Commit();
                 }
                 catch (ConsumeException e)
                 {
@@ -173,16 +172,26 @@ public class MediatorGrain : Grain, IMediatorGrain
 
         // ^^ I believe we are doing most of this in the code below, but we are not publishing to correct topic/partition
 
+        if (@event == null || @event.functionName == null || @event.parameters == null)
+        {
+            Console.WriteLine($"\nMediator got null event");
+            return;
+        }
+
         var functionName = @event.functionName;
         var parameters = @event.parameters;
+        var isWorkflow = @event.isWorkflow;
 
-        Console.WriteLine($"Received message: Key = {functionName}, Value = {parameters}, Is Workflow = {@event.isWorkflow}");
+        Console.WriteLine($"\nRecieved message: {functionName}. Is workflow: {isWorkflow}");
+        foreach (var p in parameters)
+        {
+            Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
+        }
 
         // Trigger executor grain and await function output
         var result = await executor.Execute(functionName, parameters);
-        Console.WriteLine($"Terminal result: {result}");
 
-        if (@event.isWorkflow)
+        if (isWorkflow)
         {
             if (result is null)
             {
@@ -208,6 +217,10 @@ public class MediatorGrain : Grain, IMediatorGrain
 
             if (nextfunction != null)
             {
+                Console.WriteLine($"Producing next workflow: {functionName} -> {nextfunction}.");
+                foreach (var p in output)
+                    Console.WriteLine($"\tParameter type: {p?.GetType().FullName}, value: {p}");
+
                 var nextEvent = new Event(nextfunction, output, true);
                 var _ = ProduceNextWorkflow(nextEvent);
             }
@@ -218,7 +231,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 if (obj is Inventory)
                 {
                     var i = (Inventory)obj;
-                    Console.WriteLine($"Got Inventory request. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
+                    Console.WriteLine($"Got Inventory. customerId: {i.customerId}, price: {i.price}, quantity {i.quantity}");
                     await inventoryProducer.ProduceAsync(this.inventoryTopicPartition, new Message<Null, Inventory>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
@@ -228,7 +241,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 else if (obj is Checkout)
                 {
                     var c = (Checkout)obj;
-                    Console.WriteLine($"Got Checkout request. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
+                    Console.WriteLine($"Got Checkout. productId: {c.productId}, price: {c.price}, quantity: {c.quantity}");
                     await checkoutProducer.ProduceAsync(this.checkoutTopicPartition, new Message<Null, Checkout>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),
@@ -238,7 +251,7 @@ public class MediatorGrain : Grain, IMediatorGrain
                 else if (obj is Outcome)
                 {
                     var o = (Outcome)obj;
-                    Console.WriteLine($"Got Outcome request. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
+                    Console.WriteLine($"Got Outcome. productId: {o.productId}, customerId: {o.customerId}, total: {o.total}, status: {o.status}");
                     await outcomeProducer.ProduceAsync(this.outcomeTopicPartition, new Message<Null, Outcome>
                     {
                         Timestamp = new Timestamp(Timestamp.UnixTimeEpoch, TimestampType.CreateTime),

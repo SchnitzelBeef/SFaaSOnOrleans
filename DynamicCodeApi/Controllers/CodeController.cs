@@ -110,8 +110,7 @@ namespace Controller
                 return BadRequest("Malformed composition tree. Missing proper functions names.");
             }
 
-            var namePrefix = "Workflow" + request.Root.FunctionName;
-            HandleCompositionTree(request.Root, namePrefix, 0, request.FunctionName);
+            HandleCompositionTree(request.Root, 0, 0, request.FunctionName);
 
             return Ok($"Succesfully created workflow {request.Root.FunctionName}");
         }
@@ -140,7 +139,7 @@ namespace Controller
             return false;
         }
 
-        private void HandleCompositionTree(CompositionAST node, string namePrefix, int depth, string rootName)
+        private void HandleCompositionTree(CompositionAST node, int depth, int branch, string rootName)
         {
             if (node == null)
             {
@@ -148,10 +147,12 @@ namespace Controller
                 return;
             }
 
-            foreach (var child in node.ChildrenInOrder)
+            for (var i = 0; i < node.ChildrenInOrder.Length; i++)
             {
-                HandleCompositionTree(child, namePrefix, depth + 1, null);
+                HandleCompositionTree(node.ChildrenInOrder[i], depth + 1, i, rootName);
             }
+
+            var namePrefix = "Workflow" + rootName;
 
             var code = this.kvs.GetString(node.FunctionName);
 
@@ -160,13 +161,13 @@ namespace Controller
             if (depth == 0)
                 functionName = rootName;
             else
-                functionName = $"{namePrefix}{depth}{node.FunctionName}";
+                functionName = $"{namePrefix}_{depth}_{branch}_{node.FunctionName}";
 
             // Every other function is named based uniquely on workflow + index + name
-            var childNames = string.Join(",", node.ChildrenInOrder.Select(n =>
+            var childNames = string.Join(",", node.ChildrenInOrder.Select((n, i) =>
             {
                 if (n != null)
-                    return $"\"{namePrefix}{depth + 1}{n.FunctionName}\"";
+                    return $"\"{namePrefix}_{depth + 1}_{i}_{n.FunctionName}\"";
                 else
                     return "null";
             }));

@@ -17,20 +17,23 @@ namespace Infra.EcommerceFunctions
                 var customerId = (long)outcome.customerId;
                 var productId = (long)outcome.productId;
                 var total = (double)outcome.total;
-                var status = (Status)Status.status;
+                var status = (Status)outcome.status;
+
+                var state = kvs.Get<AnalyticsState>(key);                
 
                 // If checkout is successful, update the total sales for the corresponding product
                 if (status == Status.OK)
                 {{
                     // We update a pointer so we most likely do not  have to perform kvs.Put here
-                    var reference = kvs.Get<AnalyticsState>(key).Query; 
-                    var previous = reference.GetValueOrDefault(customerId, 0);
-                    reference[customerId] = previous + total;
+                    var previous = state.Query.GetValueOrDefault(customerId, 0);
+                    state.Query[customerId] = previous + total;
                 }}
 
                 // Increment the debug counter for end-to-end latency metrics.
-                // var previousCount = this.state.DebugQuery.GetValueOrDefault(outcome.customerId, 0);
-                // this.state.DebugQuery[outcome.customerId] = previousCount + 1;
+                var debugPrevious = state.DebugQuery.GetValueOrDefault(customerId, 0);
+                state.DebugQuery[customerId] = debugPrevious + 1;
+
+                return kvs.Put<AnalyticsState>(key, state);                
             ";
 
             return code;
