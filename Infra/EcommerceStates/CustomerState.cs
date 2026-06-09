@@ -8,7 +8,7 @@ namespace Infra.EcommerceStates
     {
         public double Balance { get; set; }
         // Event number to be able to ignore duplicates 
-        // public Dictionary<int, long> LastCheckoutEventSequenceNumbers { get; set; }
-        // public Dictionary<int, long> LastOutcomeEventSequenceNumbers { get; set; }
+        public Dictionary<int, long> LastCheckoutEventOffset { get; set; }
+        public Dictionary<int, long> LastOutcomeEventOffset { get; set; }
     }
 }

@@ -26,26 +26,5 @@ namespace Infra.EcommerceFunctions
             }
             return code;
         }
-
-        // public static string GetPutTransactionalFunction()
-        // {
-        //     var args_code = GetArgs(new List<(Type, string)>
-        //     {
-        //         (typeof(string), "key"),
-        //         (typeof(object), "newValue"),
-        //         (typeof(object), "currentValue")
-        //     });
-
-        //     var code = $@"
-        //         {args_code}
-        //         var transaction = this._db.CreateTransaction();
-        //         // only SET if value matches in key matches current value
-        //         transaction.AddCondition(Condition.StringEqual(key, JsonConvert.SerializeObject(currentValue)));
-        //         transaction.StringSetAsync(key, JsonConvert.SerializeObject(newValue));
-        //         return transaction.Execute(); // returns false if condition failed (concurrent modification)
-        //     ";
-
-        //     return code;
-        // }
     }
 }

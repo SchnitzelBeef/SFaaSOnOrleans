@@ -41,6 +41,9 @@ internal class TransactionClient
         Console.WriteLine("\n ***********************************************************************");
         Console.WriteLine($"#customer = {numCustomerActor}, #product = {numProductActor}");
 
+        // Small sleep to ensure all states are registered in 
+        Thread.Sleep(2000);
+
         // ================================================================================================================
         // STEP 2: get initial inventory of all products
         var before_totalAmount = (await workload.GetAllInventory()).Item1.Sum();

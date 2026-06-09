@@ -191,7 +191,11 @@ namespace Controller
                         }}
 
                         int index = tuple.Item1;
-                        if (index < 0) {{
+                        // Ignore duplicate events:
+                        if (index == -1) {{
+                            return new System.Tuple<string, object>(null, $""Duplicate event detected, cancelling workflow in: {{tuple.Item2}}"");
+                        }}
+                        if (index < -1) {{
                             return new System.Tuple<string, object>(null, $""ERROR: Workflow failed: {{tuple.Item2}}"");
                         }}
                         if (index >= childMap.Length) {{

@@ -140,7 +140,8 @@ public class MediatorGrain : Grain, IMediatorGrain
                 try
                 {
                     var consumeResult = await Task.Run(() => this._consumer.Consume(cancellationToken));
-                    await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value);
+                    KafkaSequenceToken token = new KafkaSequenceToken(consumeResult.Offset.Value, consumeResult.Partition.Value);
+                    await ProcessMessageAsync(consumeResult.Message.Key, consumeResult.Message.Value, token);
                     this._consumer.Commit();
                 }
                 catch (ConsumeException e)
@@ -151,7 +152,7 @@ public class MediatorGrain : Grain, IMediatorGrain
             Console.WriteLine("Cancelled was requested. Closing mediator.");
         }
         catch (Exception ex)
-        {
+        {   
             Console.WriteLine($"Consumer loop error: {ex}");
         }
         finally
@@ -160,7 +161,7 @@ public class MediatorGrain : Grain, IMediatorGrain
         }
     }
 
-    private async Task ProcessMessageAsync(string key, Event @event)
+    private async Task ProcessMessageAsync(string key, Event @event, KafkaSequenceToken token)
     {
         /* TODO Handle the Kafka message.
          * In particular, (a) trigger an executor grain, (b) receive the function output, 
@@ -171,7 +172,7 @@ public class MediatorGrain : Grain, IMediatorGrain
          * https://learn.microsoft.com/en-us/dotnet/orleans/grains/external-tasks-and-grains#example-make-a-grain-call-from-code-running-on-a-thread-pool-thread
          */
 
-        // ^^ I believe we are doing most of this in the code below, but we are not publishing to correct topic/partition
+        // In regards to ^, I believe we are doing most of this in the code below, but we are not publishing to correct topic/partition
 
         if (@event == null || @event.functionName == null || @event.parameters == null)
         {
@@ -190,10 +191,16 @@ public class MediatorGrain : Grain, IMediatorGrain
         }
 
         // Trigger executor grain and await function output
-        var result = await executor.Execute(functionName, parameters);
 
         if (isWorkflow)
         {
+            // Repack parameters with token, if the event is part of a workflow
+            // This is to allow for detection of duplicate events in business functions
+            Array.Resize(ref parameters, parameters.Length + 1);
+            parameters[parameters.Length - 1] = token;
+
+            var result = await executor.Execute(functionName, parameters);
+
             if (result is null)
             {
                 Console.WriteLine($"Workflow result is null for function {functionName}");
@@ -260,8 +267,12 @@ public class MediatorGrain : Grain, IMediatorGrain
                     });
                 }
             }
+            return;
         }
 
+        // Execute as normal without token if not part of workflow.
+        // This is not the cleanest approach
+        await executor.Execute(functionName, parameters);
         return;
     }
 

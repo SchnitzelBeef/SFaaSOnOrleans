@@ -188,7 +188,9 @@ internal class WorkloadGenerator
                 Key = $"Customer-{i}",
                 Object = new CustomerState
                 {
-                    Balance = customerBalanceDistribution.Sample()
+                    Balance = customerBalanceDistribution.Sample(),
+                    LastCheckoutEventOffset = new Dictionary<int, long>(),
+                    LastOutcomeEventOffset = new Dictionary<int, long>()
                 }
             };
             this.controller.RegisterKeyObject(customerState);
@@ -205,7 +207,8 @@ internal class WorkloadGenerator
                 Object = new ProductState
                 {
                     Price = productPriceDistribution.Sample(),
-                    Quantity = productQtyDistribution.Sample()
+                    Quantity = productQtyDistribution.Sample(),
+                    LastInventoryEventOffset = new Dictionary<int, long>()
                 }
             };
             this.controller.RegisterKeyObject(productState);
@@ -221,11 +224,11 @@ internal class WorkloadGenerator
             Object = new AnalyticsState
             {
                 Query = new Dictionary<long, double>(),
-                DebugQuery = new Dictionary<long, int>()
+                DebugQuery = new Dictionary<long, int>(),
+                LastOutcomeEventOffset = new Dictionary<int, long>()
             }
         };
         this.controller.RegisterKeyObject(analyticsState);
-
 
         // EXAMPLES FOR TESTING
 
