@@ -15,23 +15,34 @@ namespace Infra.EcommerceFunctions
             var code = $@"
                 {args_code}
                 var key = ""Customer-"" + id;
+
                 var productId = (long)checkout.productId;
                 var price = (double)checkout.price;
                 var quantity = (int)checkout.quantity;
 
-                var total = price * quantity;
-                var balance = kvs.Get<CustomerState>(key).Balance;
-                if (total > balance)
+                // Redis works with optimistic locking, so we retry the execution in the loop
+                // If another thread modified the key concurrently until the key is unlocked
+                while (true)
                 {{
-                    // Get outcome log and send insufficient balance message to analytics actor      
-                    var outcomeEvent = new Outcome(id, productId, total, Status.INSUFFICIENT_BALANCE);
-                    return new Tuple<int, object>(0, outcomeEvent);
+                    var customer = kvs.Get<CustomerState>(key);
+                    var total = price * quantity;
+                    var balance = customer.Balance;
+                    if (total > balance)
+                    {{
+                        // Get outcome log and send insufficient balance message to analytics actor      
+                        var outcomeEvent = new Outcome(id, productId, total, Status.INSUFFICIENT_BALANCE);
+                        return new Tuple<int, object>(0, outcomeEvent);
+                    }}
+
+                    // Construct a new state that we do not put yet in the KVS:
+                    var newState = new CustomerState{{Balance = balance - total}};
+
+                    // If this call succeeds, we can break the loop and continue
+                    if (kvs.PutTransactional(key, newState, customer))
+                        break; // success
+
+                    // We could maybe add a sleep here if the above call fails
                 }}
-
-                // Reserve balance
-                // Not the prettiest way to update the state
-                kvs.Put(key, new CustomerState{{Balance = balance - total}});
-
                 var inventoryEvent = new Inventory(id, price, quantity);
                 return new Tuple<int, object>(1, new object[] {{ productId, inventoryEvent }});
             ";

@@ -49,6 +49,17 @@ public class RedisKVS : IKeyValueStore
 		this._db.Execute("flushdb");
 	}
 
+	public bool PutTransactional<T>(string key, T newValue, T currentValue)
+	{
+		var transaction = this._db.CreateTransaction();
+		
+		// Only SET if value on key matches current value
+		transaction.AddCondition(Condition.StringEqual(key, JsonConvert.SerializeObject(currentValue)));
+		transaction.StringSetAsync(key, JsonConvert.SerializeObject(newValue));
+
+		// Returns false if condition failed
+		return transaction.Execute(); 
+	}
 	public bool PutEvent(string key, Event @event)
 	{
 		// Should probably use the EventSerializer class here instead
