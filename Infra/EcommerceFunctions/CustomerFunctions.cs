@@ -31,6 +31,12 @@ namespace Infra.EcommerceFunctions
                     return new Tuple<int, object>(-3, $""_LastCheckoutEventOffset is null for key "" + key);
                 }}
 
+                var _LastOutcomeEventOffset = state.LastOutcomeEventOffset;
+                if (_LastOutcomeEventOffset == null)
+                {{
+                    return new Tuple<int, object>(-3, $""_LastOutcomeEventOffset is null for key "" + key);
+                }}
+
                 // Check for duplicate events to ensure exactly once
                 if (_LastCheckoutEventOffset.TryGetValue(token.EventIndex, out long lastOffset))
                 {{
@@ -63,7 +69,8 @@ namespace Infra.EcommerceFunctions
                     // Construct a new state that we do not put yet in the KVS:
                     var newState = new CustomerState{{
                         Balance = balance - total,
-                        LastCheckoutEventOffset = _LastCheckoutEventOffset
+                        LastCheckoutEventOffset = _LastCheckoutEventOffset,
+                        LastOutcomeEventOffset = _LastOutcomeEventOffset
                     }};
 
                     // If this call succeeds, we can break the loop and continue
